@@ -1,0 +1,37 @@
+{
+  "name": "socialnetworkback",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/DmytroChep/SocialNetworkBack#readme",
+  "bugs": {
+    "url": "https://github.com/DmytroChep/SocialNetworkBack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DmytroChep/SocialNetworkBack.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx ts-node src/server.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.17.1",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "envalid": "^8.1.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "prisma": "^6.17.1",
+    "typescript": "^6.0.2"
+  }
+}

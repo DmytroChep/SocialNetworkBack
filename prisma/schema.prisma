@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int          @id @default(autoincrement())
+  email           String       @unique
+  password        String
+  authorName      String?
+  userName        String?
+  status          String?
+  birthDate       DateTime?
+  sign            String?
+  currentAvatarId Int?
+  currentAvatar   UserAvatar?  @relation("CurrentAvatar", fields: [currentAvatarId], references: [id])
+  avatars         UserAvatar[] @relation("OwnedAvatars")
+  albums          Album[]
+  posts           Post[]
+  sentFriendships     Friendship[] @relation("Sender")
+  receivedFriendships Friendship[] @relation("Receiver")
+  chats               Chat[]       @relation("ChatMembers")
+  messages            Message[]
+}
+
+model UserAvatar {
+  id              Int    @id @default(autoincrement())
+  image           String
+  userId          Int
+  user            User   @relation("OwnedAvatars", fields: [userId], references: [id])
+  currentForUsers User[] @relation("CurrentAvatar")
+}
+
+model Album {
+  id     Int          @id @default(autoincrement())
+  name   String
+  topic  String?
+  year   String?
+  images AlbumImage[]
+  userId Int
+  user   User         @relation(fields: [userId], references: [id])
+}
+
+model AlbumImage {
+  id      Int    @id @default(autoincrement())
+  url     String
+  albumId Int
+  album   Album  @relation(fields: [albumId], references: [id])
+}
+
+model Friendship {
+  id         Int    @id @default(autoincrement())
+  status     String
+  senderId   Int
+  sender     User   @relation("Sender", fields: [senderId], references: [id])
+  receiverId Int
+  receiver   User   @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+model Post {
+  id           Int          @id @default(autoincrement())
+  title        String
+  topic        String?
+  description  String?
+  link         String?
+  heartLike    Int          @default(0)
+  thumbsUpLike Int          @default(0)
+  views        Int          @default(0)
+  images       PostImage[]
+  authorId     Int
+  author       User         @relation(fields: [authorId], references: [id])
+  hashtags     PostHashtag[]
+}
+
+model PostImage {
+  id     Int    @id @default(autoincrement())
+  url    String
+  postId Int
+  post   Post   @relation(fields: [postId], references: [id])
+}
+
+model Hashtag {
+  id    Int    @id @default(autoincrement())
+  title String @unique
+  posts PostHashtag[]
+}
+
+model PostHashtag {
+  postId    Int
+  post      Post    @relation(fields: [postId], references: [id])
+  hashtagId Int
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id])
+
+  @@id([postId, hashtagId])
+}
+
+model Chat {
+  id            Int       @id @default(autoincrement())
+  avatar        String?
+  title         String?
+  members       User[]    @relation("ChatMembers")
+  messages      Message[] @relation("ChatMessages")
+  lastMessageId Int?      @unique
+  lastMessage   Message?  @relation("LastMessage", fields: [lastMessageId], references: [id])
+}
+
+model Message {
+  id             Int            @id @default(autoincrement())
+  text           String?
+  createdAt      DateTime       @default(now())
+  images         MessageImage[]
+  authorId       Int
+  author         User           @relation(fields: [authorId], references: [id])
+  chatId         Int
+  chat           Chat           @relation("ChatMessages", fields: [chatId], references: [id])
+  lastMessageFor Chat?          @relation("LastMessage")
+}
+
+model MessageImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  messageId Int
+  message   Message @relation(fields: [messageId], references: [id])
+}
