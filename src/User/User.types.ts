@@ -27,6 +27,7 @@ export interface RepositoryContract {
 		userData: UpdateUser,
 		id: number,
 	) => Promise<UpdateUser | string>;
+	updateAvatar: (image: string, userId: string) => Promise<any>;
 }
 
 export interface ServiceContract {
@@ -37,6 +38,7 @@ export interface ServiceContract {
 		userData: UpdateUser,
 		id: number,
 	) => Promise<UpdateUser | string>;
+	updateAvatar: (image: string, userId: string) => Promise<any | string>;
 }
 
 export interface ControllerContract {
@@ -62,4 +64,5 @@ export interface ControllerContract {
 		req: Request<{ id: number }, UpdateUser | string, User, object>,
 		res: Response<UpdateUser | string>,
 	) => Promise<void>;
+	updateAvatar: (req: Request, res: Response) => Promise<void>;
 }
