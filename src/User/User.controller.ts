@@ -38,5 +38,31 @@ export const UserController: ControllerContract = {
 		const response = await UserService.updateUser(userData, id);
 		res.status(200).json(response);
 	},
-	
+	sendCodeVerify: async (req, res) => {
+		const gmail = req.query.gmail;
+		if (!gmail || typeof gmail !== "string" || gmail.trim() === "") {
+			res.status(400).json("not writed email");
+			return;
+		}
+
+		const response = await UserService.sendCodeVerify(gmail);
+		res.status(200).json(response);
+	},
+	checkIsCodeExists: async (req, res) => {
+		const code = Number(req.query.code);
+		console.log(code)
+		if (!code) {
+			res.status(400).json("not writed code");
+			return;
+		}
+
+		const response = await UserService.checkIsCodeExists(code);
+		res.status(200).json(response);
+	},
+	updatePassword: async (req, res) => {
+		const userData = req.body;
+
+		const response = await UserService.updatePassword(userData);
+		res.status(200).json(response);
+	},
 };

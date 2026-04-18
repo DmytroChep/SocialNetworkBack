@@ -2,6 +2,7 @@ import { compare, hash } from "bcrypt";
 import { client } from "../config/client";
 import { Prisma } from "../generated/prisma";
 import type { RepositoryContract } from "./User.types";
+import { error } from "node:console";
 
 export const UserRepository: RepositoryContract = {
 	registration: async (UserData) => {
@@ -39,13 +40,14 @@ export const UserRepository: RepositoryContract = {
 		return user;
 	},
 	me: async (UserEmail) => {
-		const user = await client.user.findUnique({ where: { email: UserEmail } });
+		const user = await client.user.findUnique({ where: { email: UserEmail }, include: {currentAvatar: true} });
 		if (user === null) {
 			return "user not found";
 		}
 		return user;
 	},
 	updateUser: async (userData, id) => {
+		console.log(";qw,qwofqwpfomqwww")
 		const user = await client.user.update({
 			where: {
 				id: Number(id),
@@ -58,5 +60,60 @@ export const UserRepository: RepositoryContract = {
 		}
 
 		return user;
+	},
+	sendCodeVerify: async (code) => {
+		try {
+			const gmailCode = await client.gmailCode.create({ data: { code: code } });
+			if (!gmailCode) {
+				return "error";
+			}
+			return "status success";
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				if (error.code === "P2024") {
+					return "error code P2024";
+				}
+			}
+			throw error;
+		}
+	},
+	checkIsCodeExists: async (code) => {
+		try {
+			const gmailCode = await client.gmailCode.findUnique({
+				where: { code: code },
+			});
+			if (!gmailCode) {
+				return false;
+			}
+			if (gmailCode) {
+				return true;
+			}
+			await client.gmailCode.delete({
+				where: { code: code },
+			});
+			return gmailCode;
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				if (error.code === "P2024") {
+					return "error code P2024";
+				}
+			}
+			throw error;
+		}
+	},
+	updatePassword: async (userData) => {
+		const hashedPassword = await hash(userData.password, 10);
+		const user = await client.user.update({
+			where: {
+				email: userData.email,
+			},
+			data: { ...userData, password: hashedPassword },
+		});
+
+		if (!user) {
+			return "user not found";
+		}
+
+		return "success";
 	},
 };

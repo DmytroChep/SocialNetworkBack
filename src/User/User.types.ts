@@ -27,6 +27,9 @@ export interface RepositoryContract {
 		userData: UpdateUser,
 		id: number,
 	) => Promise<UpdateUser | string>;
+	sendCodeVerify: (code: number) => Promise<string>;
+	checkIsCodeExists: (code: number) => Promise<boolean | string>;
+	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 }
 
 export interface ServiceContract {
@@ -37,6 +40,9 @@ export interface ServiceContract {
 		userData: UpdateUser,
 		id: number,
 	) => Promise<UpdateUser | string>;
+	sendCodeVerify: (userGmail: string) => Promise<string>;
+	checkIsCodeExists: (code: number) => Promise<boolean | string>;
+	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 }
 
 export interface ControllerContract {
@@ -61,5 +67,21 @@ export interface ControllerContract {
 	updateUser: (
 		req: Request<{ id: number }, UpdateUser | string, User, object>,
 		res: Response<UpdateUser | string>,
+	) => Promise<void>;
+	sendCodeVerify: (
+		req: Request<{ gmail: string }, string, string>,
+		res: Response<string>,
+	) => Promise<void>;
+	checkIsCodeExists: (
+		req: Request<{ code: number }, string, string>,
+		res: Response<boolean | string>,
+	) => Promise<void>;
+	updatePassword: (
+		req: Request<
+			IUserUpdatePassword,
+			IUserUpdatePassword | string,
+			IUserUpdatePassword
+		>,
+		res: Response<string>,
 	) => Promise<void>;
 }

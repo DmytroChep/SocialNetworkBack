@@ -133,3 +133,8 @@ model MessageImage {
   messageId Int
   message   Message @relation(fields: [messageId], references: [id])
 }
+
+model GmailCode {
+  id   Int @unique @id @default(autoincrement())
+  code Int @unique
+}

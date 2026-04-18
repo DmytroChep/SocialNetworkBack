@@ -8,3 +8,8 @@ userRouter.post("/user/registration", UserController.registration);
 userRouter.post("/user/login", UserController.login);
 userRouter.get("/user/me", authMiddleware, UserController.me);
 userRouter.patch("/user/:id", authMiddleware, UserController.updateUser);
+
+
+userRouter.get("/user/sendCode", UserController.sendCodeVerify);
+userRouter.get("/user/isCodeExists", UserController.checkIsCodeExists);
+userRouter.post("/user/updatePassword", UserController.updatePassword);
