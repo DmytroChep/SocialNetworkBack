@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth-middleware";
 import { UserController } from "./User.controller";
+import { validateBase64 } from "../middlewares/imageValidator";
 
 export const userRouter = Router();
 
@@ -13,3 +14,4 @@ userRouter.patch("/user/:id", authMiddleware, UserController.updateUser);
 userRouter.get("/user/sendCode", UserController.sendCodeVerify);
 userRouter.get("/user/isCodeExists", UserController.checkIsCodeExists);
 userRouter.post("/user/updatePassword", UserController.updatePassword);
+userRouter.post("/update-avatar", validateBase64, UserController.updateAvatar);

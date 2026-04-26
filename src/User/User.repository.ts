@@ -4,50 +4,58 @@ import { Prisma } from "../generated/prisma";
 import type { RepositoryContract } from "./User.types";
 import { error } from "node:console";
 
+
 export const UserRepository: RepositoryContract = {
-	registration: async (UserData) => {
-		UserData.password = await hash(UserData.password, 10);
-		const user = client.user.create({
-			data: UserData,
-		});
+    registration: async (UserData) => {
+        UserData.password = await hash(UserData.password, 10);
+        const user = client.user.create({
+            data: UserData,
+        });
 
-		if (
-			!client.user.findUnique({
-				where: { email: UserData.email },
-			})
-		) {
-			return "user already exists!";
-		}
+        if (
+            !client.user.findUnique({
+                where: { email: UserData.email },
+            })
+        ) {
+            return "user already exists!";
+        }
 
-		return user;
-	},
-	login: async (UserData) => {
-		console.log(UserData);
-		const user = await client.user.findUnique({
-			where: { email: UserData.email },
-		});
+        return user;
+    },
+    login: async (UserData) => {
+        const user = await client.user.findUnique({
+            where: { email: UserData.email },
+        });
 
-		if (user == null) {
-			return "user doesn't exists";
-		}
+        if (user == null) {
+            return "user doesn't exists";
+        }
 
-		const isPasswordCorrect = await compare(UserData.password, user.password);
+        const isPasswordCorrect = await compare(UserData.password, user.password);
 
-		if (!isPasswordCorrect) {
-			return "password not correct";
-		}
+        if (!isPasswordCorrect) {
+            return "password not correct";
+        }
 
 		return user;
 	},
 	me: async (UserEmail) => {
-		const user = await client.user.findUnique({ where: { email: UserEmail }, include: {currentAvatar: true} });
+		const user = await client.user.findUnique({ 
+			where: { email: UserEmail }, 
+			include: { currentAvatar: true, avatars: true, albums: true } 
+		});
 		if (user === null) {
 			return "user not found";
 		}
 		return user;
 	},
 	updateUser: async (userData, id) => {
-		console.log(";qw,qwofqwpfomqwww")
+
+		if (typeof userData.password === 'string') {
+			userData.password = await hash(userData.password, 10);
+		}
+
+
 		const user = await client.user.update({
 			where: {
 				id: Number(id),
@@ -55,9 +63,9 @@ export const UserRepository: RepositoryContract = {
 			data: userData,
 		});
 
-		if (!user) {
-			return "user not found";
-		}
+        if (!user) {
+            return "user not found";
+        }
 
 		return user;
 	},
@@ -115,5 +123,30 @@ export const UserRepository: RepositoryContract = {
 		}
 
 		return "success";
+	},
+    updateAvatar: async (imagePath: string, userId: string) => {
+		try {
+			const id = Number(userId);
+			if (isNaN(id)) throw new Error("Invalid User ID");
+
+			return await client.$transaction(async (tx) => {
+				const newAvatar = await tx.userAvatar.create({
+					data: {
+						image: imagePath, 
+						userId: id,
+					},
+				});
+
+				await tx.user.update({
+					where: { id: id },
+					data: { currentAvatarId: newAvatar.id },
+				});
+
+				return newAvatar;
+			});
+		} catch (error) {
+			console.error("DB Error:", error);
+			return null;
+		}
 	},
 };

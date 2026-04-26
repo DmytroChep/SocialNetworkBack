@@ -23,7 +23,7 @@ model User {
   status          String?
   birthDate       DateTime?
   sign            String?
-  currentAvatarId Int?
+  currentAvatarId Int?    @default(1)
   currentAvatar   UserAvatar?  @relation("CurrentAvatar", fields: [currentAvatarId], references: [id])
   avatars         UserAvatar[] @relation("OwnedAvatars")
   albums          Album[]
@@ -54,7 +54,7 @@ model Album {
 
 model AlbumImage {
   id      Int    @id @default(autoincrement())
-  url     String
+  image   String
   albumId Int
   album   Album  @relation(fields: [albumId], references: [id])
 }

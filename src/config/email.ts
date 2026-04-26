@@ -9,7 +9,6 @@ const transporter = createTransport({
 		pass: ENV.EMAILPASSWORD,
 	},
 });
-console.log([ENV.EMAILADRESS, ENV.EMAILPASSWORD]);
 
 export async function sendEmail(
 	subject: string,
