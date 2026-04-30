@@ -42,6 +42,9 @@ export const validateBase64 = (req: Request, res: Response, next: NextFunction) 
 
 export const validateAlbumImages = (req: Request, res: Response, next: NextFunction): void => {
   const { images, name, userId } = req.body;
+  console.log(req.body)
+
+  console.log(name, userId)
 
   if (!name || !userId) {
     res.status(400).json({ error: 'Название альбома и ID пользователя обязательны' });
@@ -57,7 +60,6 @@ export const validateAlbumImages = (req: Request, res: Response, next: NextFunct
   try {
     if (images && Array.isArray(images)) {
       const processedImages = images.map((img: any) => {
-        // Проверяем, что это base64 картинка
         const regex = /^data:image\/(png|jpg|jpeg);base64,/;
         if (!regex.test(img.image)) {
           throw new Error('Неверный формат base64 для одной из картинок');

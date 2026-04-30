@@ -97,4 +97,61 @@ export const AlbumController: ControllerContract = {
 		const response = await AlbumService.delete(id);
 		res.status(200).json(response);
 	},
+	addImages: async (req, res) => {
+		const albumId = Number(req.params.id);
+		const { images } = req.body;
+
+		if (!albumId) {
+			res.status(400).json("invalid album id");
+			return;
+		}
+
+		if (!images || !Array.isArray(images)) {
+			res.status(400).json("images must be an array");
+			return;
+		}
+
+		const response = await AlbumService.addImages(albumId, images);
+
+		if (typeof response === "string") {
+			res.status(400).json(response);
+			return;
+		}
+
+		res.status(200).json(response);
+	},
+	deleteImage: async (req, res) => {
+		const imageId = Number(req.params.imageId);
+
+		if (!imageId) {
+			res.status(400).json("invalid image id");
+			return;
+		}
+
+		const response = await AlbumService.deleteImage(imageId);
+		res.status(200).json(response);
+	},
+	replaceImages: async (req, res) => {
+		const albumId = Number(req.params.id);
+		const { images } = req.body;
+
+		if (!albumId) {
+			res.status(400).json("invalid album id");
+			return;
+		}
+
+		if (!images || !Array.isArray(images)) {
+			res.status(400).json("images must be an array");
+			return;
+		}
+
+		const response = await AlbumService.replaceImages(albumId, images);
+
+		if (typeof response === "string") {
+			res.status(400).json(response);
+			return;
+		}
+
+		res.status(200).json(response);
+	},
 };

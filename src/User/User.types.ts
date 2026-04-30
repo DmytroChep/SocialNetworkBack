@@ -40,7 +40,7 @@ export interface ServiceContract {
 	me: (JWT: string) => Promise<UserWithoutPassword | string | null>;
 	updateUser: (
 		userData: UpdateUser,
-		id: number,
+		id: string,
 	) => Promise<UpdateUser | string>;
 	sendCodeVerify: (userGmail: string) => Promise<string>;
 	checkIsCodeExists: (code: number) => Promise<boolean | string>;
@@ -68,7 +68,7 @@ export interface ControllerContract {
 		res: Response<UserWithoutPassword | string, { token: string }>,
 	) => Promise<void>;
 	updateUser: (
-		req: Request<{ id: number }, UpdateUser | string, User, object>,
+		req: Request<{ id: string }, UpdateUser | string, User, object>,
 		res: Response<UpdateUser | string>,
 	) => Promise<void>;
 	sendCodeVerify: (

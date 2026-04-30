@@ -22,4 +22,16 @@ export const AlbumService: ServiceContract = {
 		const response = await AlbumRepository.delete(id);
 		return response;
 	},
+	addImages: async (albumId, images) => {
+		const response = await AlbumRepository.addImages(albumId, images);
+		return response;
+	},
+	deleteImage: async (imageId) => {
+		const response = await AlbumRepository.deleteImage(imageId);
+		return response;
+	},
+	replaceImages: async (albumId, images) => {
+		const response = await AlbumRepository.replaceImages(albumId, images);
+		return response;
+	},
 };

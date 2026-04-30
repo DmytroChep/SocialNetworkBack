@@ -13,6 +13,9 @@ export interface RepositoryContract {
 	getByUserId: (userId: number) => Promise<AlbumWithImages[] | string>;
 	update: (id: number, albumData: UpdateAlbum) => Promise<Album | string>;
 	delete: (id: number) => Promise<string>;
+	addImages: (albumId: number, images: CreateAlbumImage[]) => Promise<AlbumWithImages | string>;
+	deleteImage: (imageId: number) => Promise<string>;
+	replaceImages: (albumId: number, images: CreateAlbumImage[]) => Promise<AlbumWithImages | string>;
 }
 
 export interface ServiceContract {
@@ -21,6 +24,9 @@ export interface ServiceContract {
 	getByUserId: (userId: number) => Promise<AlbumWithImages[] | string>;
 	update: (id: number, albumData: UpdateAlbum) => Promise<Album | string>;
 	delete: (id: number) => Promise<string>;
+	addImages: (albumId: number, images: CreateAlbumImage[]) => Promise<AlbumWithImages | string>;
+	deleteImage: (imageId: number) => Promise<string>;
+	replaceImages: (albumId: number, images: CreateAlbumImage[]) => Promise<AlbumWithImages | string>;
 }
 
 export interface ControllerContract {
@@ -29,4 +35,7 @@ export interface ControllerContract {
 	getByUserId: (req: Request<any>, res: Response<any>) => Promise<void>;
 	update: (req: Request<any>, res: Response<any>) => Promise<void>;
 	delete: (req: Request<any>, res: Response<any>) => Promise<void>;
+	addImages: (req: Request<any>, res: Response<any>) => Promise<void>;
+	deleteImage: (req: Request<any>, res: Response<any>) => Promise<void>;
+	replaceImages: (req: Request<any>, res: Response<any>) => Promise<void>;
 }

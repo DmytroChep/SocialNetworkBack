@@ -42,7 +42,7 @@ export const UserRepository: RepositoryContract = {
 	me: async (UserEmail) => {
 		const user = await client.user.findUnique({ 
 			where: { email: UserEmail }, 
-			include: { currentAvatar: true, avatars: true, albums: true } 
+			include: { currentAvatar: true, avatars: true, albums: {include: {images: true}} } 
 		});
 		if (user === null) {
 			return "user not found";
