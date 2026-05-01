@@ -23,7 +23,7 @@ model User {
   status          String?
   birthDate       DateTime?
   sign            String?
-  currentAvatarId Int?    @default(1)
+  currentAvatarId Int?
   currentAvatar   UserAvatar?  @relation("CurrentAvatar", fields: [currentAvatarId], references: [id])
   avatars         UserAvatar[] @relation("OwnedAvatars")
   albums          Album[]

@@ -6,7 +6,7 @@ import { HashtagRouter } from "./Hashtag/Hashtag.router";
 import path from "path";
 
 const PORT = 8000;
-const HOST = "0.0.0.0"
+const HOST = "192.168.1.74"
 const app = express();
 
 
