@@ -75,4 +75,8 @@ export const UserController: ControllerContract = {
         }
         res.status(200).json(response);
     },
+    allUsers: async (req, res) => {
+        const response = await UserService.allUsers();
+        res.status(200).json(response);
+    },
 };

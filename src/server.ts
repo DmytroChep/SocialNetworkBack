@@ -4,6 +4,7 @@ import { userRouter } from "./User/User.router";
 import { AlbumRouter } from "./Album/Album.router";
 import { HashtagRouter } from "./Hashtag/Hashtag.router";
 import path from "path";
+import { PostRouter } from "./Post/Post.router";
 
 const PORT = 8000;
 const HOST = "192.168.1.74"
@@ -24,6 +25,7 @@ app.use('/media', express.static(path.join(__dirname, '../media')));
 app.use(userRouter);
 app.use(AlbumRouter);
 app.use(HashtagRouter);
+app.use(PostRouter)
 
 app.listen(PORT, HOST, () => {
 	console.log(`http://${HOST}:${PORT}`);

@@ -32,6 +32,7 @@ export interface RepositoryContract {
 	checkIsCodeExists: (code: number) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any>;
+	allUsers: () => Promise<UserWithoutPassword[]>;
 }
 
 export interface ServiceContract {
@@ -40,12 +41,13 @@ export interface ServiceContract {
 	me: (JWT: string) => Promise<UserWithoutPassword | string | null>;
 	updateUser: (
 		userData: UpdateUser,
-		id: number,
+		id: string,
 	) => Promise<UpdateUser | string>;
 	sendCodeVerify: (userGmail: string) => Promise<string>;
 	checkIsCodeExists: (code: number) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any | string>;
+	allUsers: () => Promise<UserWithoutPassword[]>;
 }
 
 export interface ControllerContract {
@@ -68,7 +70,7 @@ export interface ControllerContract {
 		res: Response<UserWithoutPassword | string, { token: string }>,
 	) => Promise<void>;
 	updateUser: (
-		req: Request<{ id: number }, UpdateUser | string, User, object>,
+		req: Request<{ id: string }, UpdateUser | string, User, object>,
 		res: Response<UpdateUser | string>,
 	) => Promise<void>;
 	sendCodeVerify: (
@@ -88,4 +90,5 @@ export interface ControllerContract {
 		res: Response<string>,
 	) => Promise<void>;
 	updateAvatar: (req: Request, res: Response) => Promise<void>;
+	allUsers: (req: Request, res: Response) => Promise<void>;
 }

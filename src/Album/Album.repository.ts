@@ -32,8 +32,9 @@ export const AlbumRepository: RepositoryContract = {
 		try {
 			const albums = await client.album.findMany({
 				where: { userId },
-				include: { images: true },
+				include: { images: true },	
 			});
+			console.log(albums)
 			return albums;
 		} catch (error) {
 			return "error fetching albums";
@@ -67,6 +68,65 @@ export const AlbumRepository: RepositoryContract = {
 				}
 			}
 			return "error deleting album";
+		}
+	},
+	addImages: async (albumId, images) => {
+		try {
+			const album = await client.album.update({
+				where: { id: albumId },
+				data: {
+					images: {
+						create: images
+					}
+				},
+				include: { images: true }
+			});
+			return album;
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				console.log(error)
+				return "error adding images to album";
+			}
+			throw error;
+		}
+	},
+	deleteImage: async (imageId) => {
+		try {
+			await client.albumImage.delete({
+				where: { id: imageId }
+			});
+			return "image deleted successfully";
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				if (error.code === "P2025") {
+					return "image not found";
+				}
+			}
+			return "error deleting image";
+		}
+	},
+	replaceImages: async (albumId, images) => {
+		try {
+			// Удаляем старые картинки
+			await client.albumImage.deleteMany({
+				where: { albumId }
+			});
+			// Добавляем новые
+			const album = await client.album.update({
+				where: { id: albumId },
+				data: {
+					images: {
+						create: images
+					}
+				},
+				include: { images: true }
+			});
+			return album;
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				return "error replacing images";
+			}
+			throw error;
 		}
 	},
 };

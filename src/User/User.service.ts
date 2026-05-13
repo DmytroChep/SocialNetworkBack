@@ -47,12 +47,17 @@ export const UserService: ServiceContract = {
         return userWithoutPassword;
     },
     updateUser: async (userData, id) => {
-        const response = await UserRepository.updateUser(userData, id);
+        const userId = Number(id)
+
+        if (isNaN(userId)){
+            return "user id must be a number"
+        }
+
+        const response = await UserRepository.updateUser(userData, userId);
 
 		return response;
 	},
 	sendCodeVerify: async (gmail) => {
-		// Validate email format
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRegex.test(gmail)) {
 			return "invalid email format";
@@ -97,5 +102,8 @@ export const UserService: ServiceContract = {
         }
 
         return response;
-    }
+    },
+    allUsers: async () => {
+        return await UserRepository.allUsers();
+    },
 };

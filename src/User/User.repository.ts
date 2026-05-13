@@ -1,7 +1,7 @@
 import { compare, hash } from "bcrypt";
 import { client } from "../config/client";
 import { Prisma } from "../generated/prisma";
-import type { RepositoryContract } from "./User.types";
+import type { RepositoryContract, UserWithoutPassword } from "./User.types";
 import { error } from "node:console";
 
 
@@ -42,7 +42,7 @@ export const UserRepository: RepositoryContract = {
 	me: async (UserEmail) => {
 		const user = await client.user.findUnique({ 
 			where: { email: UserEmail }, 
-			include: { currentAvatar: true, avatars: true, albums: true } 
+			include: { currentAvatar: true, avatars: true, albums: {include: {images: true}} } 
 		});
 		if (user === null) {
 			return "user not found";
@@ -148,5 +148,10 @@ export const UserRepository: RepositoryContract = {
 			console.error("DB Error:", error);
 			return null;
 		}
+	},
+	allUsers: async () => {
+		return await client.user.findMany({
+			include: { currentAvatar: true }
+		}) as UserWithoutPassword[];
 	},
 };
