@@ -49,13 +49,18 @@ export const UserController: ControllerContract = {
 		res.status(200).json(response);
 	},
 	checkIsCodeExists: async (req, res) => {
-		const code = Number(req.query.code);
-		if (!code) {
+		const email = req.query.email;
+		const code = req.query.code;
+
+		if (typeof code !== "string" || code.trim() === "") {
 			res.status(400).json("not writed code");
 			return;
 		}
 
-		const response = await UserService.checkIsCodeExists(code);
+		const response = await UserService.checkIsCodeExists(
+			typeof email === "string" && email.trim() !== "" ? email : undefined,
+			code,
+		);
 		res.status(200).json(response);
 	},
 	updatePassword: async (req, res) => {

@@ -1,214 +1,330 @@
+import { ENV } from "../config";
 import { PostService } from "./Post.service";
+import { HashtagService } from "../Hashtag/Hashtag.service";
 import type { ControllerContract } from "./Post.types";
+import jwt from "jsonwebtoken";
 
-type CreatePostBody = {
-	title: string;
-	authorId: number;
-	description?: string | null;
-	topic?: string | null;
-	link?: string | null;
-	hashtagIds?: number[];
-	images?: Array<{ url: string }>;
+const parseId = (value: unknown): number | null => {
+	const id = Number(value);
+	return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-type UpdatePostBody = {
-	title?: string;
-	description?: string | null;
-	topic?: string | null;
-	link?: string | null;
-	hashtagIds?: number[];
+const parsePositiveInt = (value: unknown): number | undefined => {
+	if (value === undefined) return undefined;
+	const parsed = Number(value);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 };
+
+const decodeToken = (token?: string): { email: string } | null => {
+	if (!token) return null;
+	try {
+		return jwt.verify(token, ENV.SECRET_KEY) as { email: string };
+	} catch {
+		return null;
+	}
+};
+
+const isStringArray = (v: unknown): v is string[] =>
+	Array.isArray(v) && v.every(i => typeof i === "string");
+
+const isNumberArray = (v: unknown): v is number[] =>
+	Array.isArray(v) && v.every(i => typeof i === "number");
+
+const isImageArray = (
+	v: unknown
+): v is Array<{ original_image?: string; compressed_image?: string | null; url?: string; image?: string }> =>
+	Array.isArray(v) &&
+	v.every(
+		i =>
+			typeof i === "object" &&
+			i !== null &&
+			(typeof (i as any).original_image === "string" ||
+				typeof (i as any).url === "string" ||
+				typeof (i as any).image === "string")
+	);
+
+const normalizeImages = (
+	images: Array<{ original_image?: string; compressed_image?: string | null; url?: string; image?: string }>,
+) =>
+	images.map((image) => ({
+		original_image: image.original_image ?? image.url ?? image.image ?? "",
+		compressed_image: image.compressed_image ?? null,
+	}));
+
+const bad = (res: any, msg: string) => res.status(400).json(msg);
+const unauthorized = (res: any) => res.status(401).json("invalid token");
 
 export const PostController: ControllerContract = {
 	create: async (req, res) => {
-		const { title, authorId, description, topic, link, hashtagIds, images } = req.body as CreatePostBody;
-
-		if (!title || !authorId) {
-			res.status(400).json("title and authorId are required");
-			return;
-		}
-
-		const hashtagsInput = hashtagIds && Array.isArray(hashtagIds) && hashtagIds.length > 0
-			? { create: hashtagIds.map((id: number) => ({ hashtagId: id })) }
-			: undefined;
-
-		const imagesInput = images && Array.isArray(images) && images.length > 0
-			? { create: images }
-			: undefined;
-
-		const postData = {
+		const body = req.body.post ?? req.body;
+		const {
 			title,
+			content,
+			description,
+			topic,
+			author_id,
 			authorId,
-			...(description && { description }),
-			...(topic && { topic }),
-			...(link && { link }),
-			...(hashtagsInput && { hashtags: hashtagsInput }),
-			...(imagesInput && { images: imagesInput }),
+			tag_ids,
+			hashtagIds,
+			hashtags,
+			links,
+			link,
+			images,
+		} = body;
+
+		if (!title?.trim()) return bad(res, "title is required");
+
+		const postContent = typeof content === "string" ? content : description;
+
+		const parsedAuthorId = parseId(author_id ?? authorId);
+		if (!parsedAuthorId) return bad(res, "invalid authorId");
+
+		const data: any = {
+			title: title.trim(),
+			content: typeof postContent === "string" ? postContent.trim() : "",
+			topic: typeof topic === "string" ? topic : undefined,
+			author: { connect: { id: parsedAuthorId } },
 		};
 
-		const response = await PostService.create(postData);
+		// Handle hashtag IDs
+		const tagIds = isNumberArray(tag_ids)
+			? tag_ids
+			: isNumberArray(hashtagIds)
+				? hashtagIds
+				: undefined;
 
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
+		// Handle hashtag names
+		const hashtagNames = isStringArray(hashtags) ? hashtags : undefined;
+
+		// Process hashtags: combine IDs and names
+		try {
+			const allTags: { tag_id: number }[] = [];
+
+			// Add existing hashtags by ID
+			if (tagIds) {
+				allTags.push(...tagIds.map(id => ({ tag_id: id })));
+			}
+
+			// Create new hashtags from names
+			if (hashtagNames) {
+				const createdHashtags = await HashtagService.getOrCreateMultiple(hashtagNames);
+				if (typeof createdHashtags === "string") {
+					return bad(res, createdHashtags);
+				}
+				allTags.push(...createdHashtags.map((tag: any) => ({ tag_id: tag.id })));
+			}
+
+			if (allTags.length > 0) {
+				data.tags = { create: allTags };
+			}
+		} catch (error) {
+			return bad(res, "error processing hashtags");
 		}
 
-		res.status(201).json(response);
+		const postLinks = isStringArray(links)
+			? links
+			: typeof link === "string" && link.trim() !== ""
+				? [link]
+				: undefined;
+
+		if (postLinks)
+			data.links = { create: postLinks.map(url => ({ url })) };
+
+		if (isImageArray(images))
+			data.images = { create: normalizeImages(images) };
+
+		const result = await PostService.create(data);
+		if (typeof result === "string") return bad(res, result);
+
+		res.status(201).json(result);
 	},
 
 	getById: async (req, res) => {
-		const id = Number((req.params as Record<string, string>).id);
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
 
-		if (!id || isNaN(id)) {
-			res.status(400).json("invalid post id");
-			return;
-		}
+		const post = await PostService.getById(id);
+		if (typeof post === "string") return bad(res, post);
+		if (!post) return res.status(404).json("post not found");
 
-		const response = await PostService.getById(id);
-
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
-		}
-
-		if (!response) {
-			res.status(404).json("post not found");
-			return;
-		}
-
-		res.status(200).json(response);
+		res.json(post);
 	},
 
 	getAll: async (req, res) => {
-		const response = await PostService.getAll();
-
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
-		}
-
-		res.status(200).json(response);
+		const cursor = parsePositiveInt(req.query.cursor);
+		const result = await PostService.getAll({
+			limit: parsePositiveInt(req.query.limit) ?? 5,
+			...(cursor ? { cursor } : {}),
+		});
+		if (typeof result === "string") return bad(res, result);
+		res.json(result);
 	},
 
 	getByAuthorId: async (req, res) => {
-		const authorId = Number((req.params as Record<string, string>).authorId);
+		const authorId = parseId(req.params.authorId);
+		if (!authorId) return bad(res, "invalid author id");
 
-		if (!authorId || isNaN(authorId)) {
-			res.status(400).json("invalid author id");
-			return;
-		}
+		const result = await PostService.getByAuthorId(authorId);
+		if (typeof result === "string") return bad(res, result);
 
-		const response = await PostService.getByAuthorId(authorId);
-
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
-		}
-
-		res.status(200).json(response);
+		res.json(result);
 	},
 
 	update: async (req, res) => {
-		const id = Number((req.params as Record<string, string>).id);
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
 
-		if (!id || isNaN(id)) {
-			res.status(400).json("invalid post id");
-			return;
+		const { title, content, description, topic, tag_ids, hashtagIds, hashtags, links, link } = req.body;
+		const data: any = {};
+
+		if (title !== undefined) {
+			if (!title.trim()) return bad(res, "invalid title");
+			data.title = title.trim();
 		}
 
-		const { title, description, topic, link, hashtagIds } = req.body as UpdatePostBody;
+		const postContent = content !== undefined ? content : description;
 
-		const hashtagsUpdate = hashtagIds && Array.isArray(hashtagIds) && hashtagIds.length > 0
-			? { deleteMany: {}, create: hashtagIds.map((id: number) => ({ hashtagId: id })) }
-			: undefined;
-
-		const postData = {
-			...(title && { title }),
-			...(description !== undefined && { description }),
-			...(topic !== undefined && { topic }),
-			...(link !== undefined && { link }),
-			...(hashtagsUpdate && { hashtags: hashtagsUpdate }),
-		};
-
-		const response = await PostService.update(id, postData);
-
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
+		if (postContent !== undefined) {
+			if (postContent === null) {
+				data.content = "";
+			} else if (typeof postContent !== "string") {
+				return bad(res, "invalid description");
+			} else {
+				data.content = postContent.trim();
+			}
 		}
 
-		res.status(200).json(response);
+		if (topic !== undefined) data.topic = topic;
+
+		// Handle hashtag IDs and names
+		const tagIds = isNumberArray(tag_ids)
+			? tag_ids
+			: isNumberArray(hashtagIds)
+				? hashtagIds
+				: undefined;
+
+		const hashtagNames = isStringArray(hashtags) ? hashtags : undefined;
+
+		// Process hashtags: combine IDs and names
+		if (tagIds !== undefined || hashtagNames !== undefined) {
+			try {
+				const allTags: { tag_id: number }[] = [];
+
+				// Add existing hashtags by ID
+				if (tagIds) {
+					allTags.push(...tagIds.map(id => ({ tag_id: id })));
+				}
+
+				// Create new hashtags from names
+				if (hashtagNames) {
+					const createdHashtags = await HashtagService.getOrCreateMultiple(hashtagNames);
+					if (typeof createdHashtags === "string") {
+						return bad(res, createdHashtags);
+					}
+					allTags.push(...createdHashtags.map((tag: any) => ({ tag_id: tag.id })));
+				}
+
+				data.tags = {
+					deleteMany: {},
+					create: allTags,
+				};
+			} catch (error) {
+				return bad(res, "error processing hashtags");
+			}
+		}
+
+		const postLinks = isStringArray(links)
+			? links
+			: typeof link === "string"
+				? [link]
+				: link === null
+					? []
+				: undefined;
+
+		if (postLinks)
+			data.links = {
+				deleteMany: {},
+				create: postLinks.filter(Boolean).map(url => ({ url })),
+			};
+
+		const result = await PostService.update(id, data);
+		if (typeof result === "string") return bad(res, result);
+
+		res.json(result);
 	},
 
 	delete: async (req, res) => {
-		const id = Number((req.params as Record<string, string>).id);
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
 
-		if (!id || isNaN(id)) {
-			res.status(400).json("invalid post id");
-			return;
-		}
+		const result = await PostService.delete(id);
+		if (typeof result === "string") return bad(res, result);
 
-		const response = await PostService.delete(id);
-		res.status(200).json(response);
+		res.json(result);
 	},
 
 	addImages: async (req, res) => {
-		const postId = Number((req.params as Record<string, string>).id);
-		const { images } = req.body;
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
+		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		if (!postId || isNaN(postId)) {
-			res.status(400).json("invalid post id");
-			return;
-		}
+		const result = await PostService.addImages(id, normalizeImages(req.body.images));
+		if (typeof result === "string") return bad(res, result);
 
-		if (!images || !Array.isArray(images)) {
-			res.status(400).json("images must be an array");
-			return;
-		}
-
-		const response = await PostService.addImages(postId, images);
-
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
-		}
-
-		res.status(200).json(response);
-	},
-
-	deleteImage: async (req, res) => {
-		const imageId = Number((req.params as Record<string, string>).imageId);
-
-		if (!imageId || isNaN(imageId)) {
-			res.status(400).json("invalid image id");
-			return;
-		}
-
-		const response = await PostService.deleteImage(imageId);
-		res.status(200).json(response);
+		res.json(result);
 	},
 
 	replaceImages: async (req, res) => {
-		const postId = Number((req.params as Record<string, string>).id);
-		const { images } = req.body;
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
+		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		if (!postId || isNaN(postId)) {
-			res.status(400).json("invalid post id");
-			return;
-		}
+		const result = await PostService.replaceImages(id, normalizeImages(req.body.images));
+		if (typeof result === "string") return bad(res, result);
 
-		if (!images || !Array.isArray(images)) {
-			res.status(400).json("images must be an array");
-			return;
-		}
+		res.json(result);
+	},
 
-		const response = await PostService.replaceImages(postId, images);
+	deleteImage: async (req, res) => {
+		const id = parseId(req.params.imageId);
+		if (!id) return bad(res, "invalid image id");
 
-		if (typeof response === "string") {
-			res.status(400).json(response);
-			return;
-		}
+		const result = await PostService.deleteImage(id);
+		if (typeof result === "string") return bad(res, result);
 
-		res.status(200).json(response);
+		res.json(result);
+	},
+
+	thumbUpIncrease: async (req, res) => {
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
+
+		const decoded = decodeToken(res.locals.token);
+		if (!decoded) return unauthorized(res);
+
+		const status = await PostService.thumbUpIncrease(id, decoded.email);
+		res.json({ status });
+	},
+
+	heartIncrease: async (req, res) => {
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
+
+		const decoded = decodeToken(res.locals.token);
+		if (!decoded) return unauthorized(res);
+
+		const status = await PostService.heartIncrease(id, decoded.email);
+		res.json({ status });
+	},
+
+	viewsIncrease: async (req, res) => {
+		const id = parseId(req.params.id);
+		if (!id) return bad(res, "invalid post id");
+
+		const decoded = decodeToken(res.locals.token);
+		if (!decoded) return unauthorized(res);
+
+		const status = await PostService.viewsIncrease(id, decoded.email);
+		res.json({ status });
 	},
 };

@@ -2,39 +2,39 @@ import { PostRepository } from "./Post.repository";
 import type { ServiceContract } from "./Post.types";
 
 export const PostService: ServiceContract = {
-	create: async (postData) => {
-		return PostRepository.create(postData);
-	},
+	create: (postData) =>
+		PostRepository.create(postData),
 
-	getById: async (id) => {
-		return PostRepository.getById(id);
-	},
+	getById: (id) =>
+		PostRepository.getById(id),
 
-	getAll: async () => {
-		return PostRepository.getAll();
-	},
+	getAll: (params) =>
+		PostRepository.getAll(params),
 
-	getByAuthorId: async (authorId) => {
-		return PostRepository.getByAuthorId(authorId);
-	},
+	getByAuthorId: (authorId) =>
+		PostRepository.getByAuthorId(authorId),
 
-	update: async (id, postData) => {
-		return PostRepository.update(id, postData);
-	},
+	update: (id, postData) =>
+		PostRepository.update(id, postData),
 
-	delete: async (id) => {
-		return PostRepository.delete(id);
-	},
+	delete: (id) =>
+		PostRepository.delete(id),
 
-	addImages: async (postId, images) => {
-		return PostRepository.addImages(postId, images);
-	},
+	addImages: (postId, images) =>
+		PostRepository.addImages(postId, images),
 
-	deleteImage: async (imageId) => {
-		return PostRepository.deleteImage(imageId);
-	},
+	deleteImage: (imageId) =>
+		PostRepository.deleteImage(imageId),
 
-	replaceImages: async (postId, images) => {
-		return PostRepository.replaceImages(postId, images);
-	},
+	replaceImages: (postId, images) =>
+		PostRepository.replaceImages(postId, images),
+
+	heartIncrease: (postId, userEmail) =>
+		PostRepository.heartIncrease(postId, userEmail),
+
+	thumbUpIncrease: (postId, userEmail) =>
+		PostRepository.thumbUpIncrease(postId, userEmail),
+
+	viewsIncrease: (postId, userEmail) =>
+		PostRepository.viewsIncrease(postId, userEmail),
 };

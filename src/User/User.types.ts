@@ -2,12 +2,14 @@ import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma";
 
 export type User = Prisma.UserGetPayload<{}>;
-export type UserWithCurrentAvatar = Prisma.UserGetPayload<{ include: { currentAvatar: true } }>;
-export type UserWithoutPassword = Omit<Prisma.UserGetPayload<{ include: { currentAvatar: true } }>, "password">;
-export type LoginUser = Omit<
-	Prisma.UserGetPayload<{}>,
-	"firstname" | "secondName" | "avatar" | "isAdmin"
->;
+export type UserWithProfile = Prisma.UserGetPayload<{ include: { profile: true } }>;
+export type UserWithoutPassword = Omit<UserWithProfile, "password">;
+
+export type LoginUser = {
+	email: string;
+	password: string;
+};
+
 export interface IUserUpdatePassword {
 	password: string;
 	email: string;
@@ -17,19 +19,21 @@ export type UpdateUser = Prisma.UserUncheckedUpdateInput;
 
 export type Email = { email: string };
 
-export type CreateUser = Prisma.UserUncheckedCreateInput;
+export type CreateUser = Prisma.UserUncheckedCreateInput & {
+	profile?: Prisma.ProfileUncheckedCreateNestedOneWithoutUserInput;
+};
 
 
 export interface RepositoryContract {
-	registration: (UserData: CreateUser) => Promise<CreateUser | string>;
-	login: (UserData: LoginUser) => Promise<LoginUser | string | null>;
-	me: (UserEmail: string) => Promise<UserWithCurrentAvatar | string>;
+	registration: (UserData: CreateUser) => Promise<User | string>;
+	login: (UserData: LoginUser) => Promise<User | string | null>;
+	me: (UserEmail: string) => Promise<any | string>;
 	updateUser: (
-		userData: UpdateUser,
+		userData: any,
 		id: number,
-	) => Promise<UpdateUser | string>;
-	sendCodeVerify: (code: number) => Promise<string>;
-	checkIsCodeExists: (code: number) => Promise<boolean | string>;
+	) => Promise<any | string>;
+	sendCodeVerify: (email: string, code: string, newEmail?: string) => Promise<string>;
+	checkIsCodeExists: (email: string | undefined, code: string) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any>;
 }
@@ -39,11 +43,11 @@ export interface ServiceContract {
 	login: (UserData: LoginUser) => Promise<LoginUser | string>;
 	me: (JWT: string) => Promise<UserWithoutPassword | string | null>;
 	updateUser: (
-		userData: UpdateUser,
+		userData: any,
 		id: string,
-	) => Promise<UpdateUser | string>;
+	) => Promise<any | string>;
 	sendCodeVerify: (userGmail: string) => Promise<string>;
-	checkIsCodeExists: (code: number) => Promise<boolean | string>;
+	checkIsCodeExists: (email: string | undefined, code: string) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any | string>;
 }
@@ -76,7 +80,7 @@ export interface ControllerContract {
 		res: Response<string>,
 	) => Promise<void>;
 	checkIsCodeExists: (
-		req: Request<{ code: number }, string, string>,
+		req: Request<object, string, string>,
 		res: Response<boolean | string>,
 	) => Promise<void>;
 	updatePassword: (

@@ -5,10 +5,25 @@ export type Post = Prisma.PostGetPayload<{}>;
 export type PostWithRelations = Prisma.PostGetPayload<{
 	include: { 
 		images: true; 
-		hashtags: { include: { hashtag: true } };
-		author: { select: { password: false; id: true; email: true; authorName: true; userName: true; status: true; birthDate: true; sign: true; currentAvatarId: true; currentAvatar: true; } }
+		links: true;
+		tags: { include: { tag: true } };
+		likes: true;
+		hearts: true;
+		views: true;
+		author: { select: { id: true; email: true; username: true; first_name: true; last_name: true; profile: true; } }
 	};
 }>;
+
+export interface PostPaginationParams {
+	limit?: number;
+	cursor?: number;
+}
+
+export interface PaginatedPostsResult {
+	items: any[];
+	nextCursor: number | null;
+	hasMore: boolean;
+}
 
 interface CreatePostRequest {
 	title: string;
@@ -17,6 +32,7 @@ interface CreatePostRequest {
 	topic?: string | null;
 	link?: string | null;
 	hashtagIds?: number[];
+	hashtags?: string[];
 }
 
 interface UpdatePostRequest {
@@ -25,30 +41,37 @@ interface UpdatePostRequest {
 	topic?: string | null;
 	link?: string | null;
 	hashtagIds?: number[];
+	hashtags?: string[];
 }
 
 export interface RepositoryContract {
-	create: (postData: Prisma.PostUncheckedCreateInput) => Promise<PostWithRelations | string>;
-	getById: (id: number) => Promise<PostWithRelations | string | null>;
-	getAll: () => Promise<PostWithRelations[] | string>;
-	getByAuthorId: (authorId: number) => Promise<PostWithRelations[] | string>;
-	update: (id: number, postData: Prisma.PostUncheckedUpdateInput) => Promise<PostWithRelations | string>;
+	create: (postData: any) => Promise<any | string>;
+	getById: (id: number) => Promise<any | string | null>;
+	getAll: (params?: PostPaginationParams) => Promise<PaginatedPostsResult | string>;
+	getByAuthorId: (authorId: number) => Promise<any[] | string>;
+	update: (id: number, postData: any) => Promise<any | string>;
 	delete: (id: number) => Promise<string>;
-	addImages: (postId: number, images: Prisma.PostImageUncheckedCreateInput[]) => Promise<PostWithRelations | string>;
+	addImages: (postId: number, images: any[]) => Promise<any | string>;
 	deleteImage: (imageId: number) => Promise<string>;
-	replaceImages: (postId: number, images: Prisma.PostImageUncheckedCreateInput[]) => Promise<PostWithRelations | string>;
+	replaceImages: (postId: number, images: any[]) => Promise<any | string>;
+	thumbUpIncrease: (postId: number, email:string) => Promise<string>,
+	heartIncrease: (postId: number, email:string) => Promise<string>,
+	viewsIncrease: (postId: number, email:string) => Promise<string>
 }
 
 export interface ServiceContract {
-	create: (postData: Prisma.PostUncheckedCreateInput) => Promise<PostWithRelations | string>;
-	getById: (id: number) => Promise<PostWithRelations | string | null>;
-	getAll: () => Promise<PostWithRelations[] | string>;
-	getByAuthorId: (authorId: number) => Promise<PostWithRelations[] | string>;
-	update: (id: number, postData: Prisma.PostUncheckedUpdateInput) => Promise<PostWithRelations | string>;
+	create: (postData: any) => Promise<any | string>;
+	getById: (id: number, userId?: number) => Promise<any | string | null>;
+	getAll: (params?: PostPaginationParams) => Promise<PaginatedPostsResult | string>;
+	getByAuthorId: (authorId: number, userId?: number) => Promise<any[] | string>;
+	update: (id: number, postData: any) => Promise<any | string>;
 	delete: (id: number) => Promise<string>;
-	addImages: (postId: number, images: Prisma.PostImageUncheckedCreateInput[]) => Promise<PostWithRelations | string>;
+	addImages: (postId: number, images: any[]) => Promise<any | string>;
 	deleteImage: (imageId: number) => Promise<string>;
-	replaceImages: (postId: number, images: Prisma.PostImageUncheckedCreateInput[]) => Promise<PostWithRelations | string>;
+	replaceImages: (postId: number, images: any[]) => Promise<any | string>;
+	thumbUpIncrease: (postId: number, email:string) => Promise<string>,
+	heartIncrease: (postId: number, email:string) => Promise<string>,
+	viewsIncrease: (postId: number, userEmail: string) => Promise<string>
 }
 
 export interface ControllerContract {
@@ -61,5 +84,7 @@ export interface ControllerContract {
 	addImages: (req: Request, res: Response) => Promise<void>;
 	deleteImage: (req: Request, res: Response) => Promise<void>;
 	replaceImages: (req: Request, res: Response) => Promise<void>;
+	thumbUpIncrease: (req: Request, res: Response) => Promise<void>,
+	heartIncrease: (req: Request, res: Response) => Promise<void>,
+	viewsIncrease: (req: Request, res: Response) => Promise<void>
 }
-

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -15,126 +9,389 @@ datasource db {
 }
 
 model User {
-  id              Int          @id @default(autoincrement())
-  email           String       @unique
-  password        String
-  authorName      String?
-  userName        String?
-  status          String?
-  birthDate       DateTime?
-  sign            String?
-  currentAvatarId Int?    @default(1)
-  currentAvatar   UserAvatar?  @relation("CurrentAvatar", fields: [currentAvatarId], references: [id])
-  avatars         UserAvatar[] @relation("OwnedAvatars")
-  albums          Album[]
-  posts           Post[]
-  sentFriendships     Friendship[] @relation("Sender")
-  receivedFriendships Friendship[] @relation("Receiver")
-  chats               Chat[]       @relation("ChatMembers")
-  messages            Message[]
+  id           Int       @id @default(autoincrement())
+  password     String
+  last_login   DateTime?
+  is_superuser Boolean   @default(false)
+  username     String    @unique
+  first_name   String    @default("")
+  last_name    String    @default("")
+  email        String    @unique
+  is_staff     Boolean   @default(false)
+  is_active    Boolean   @default(true)
+  date_joined  DateTime  @default(now())
+
+  profile            Profile?
+  email_verification EmailVerification?
+
+  posts         Post[]
+  sent_messages Message[]       @relation("MessageSender")
+  read_messages MessageReader[]
+
+  chat_memberships ChatUser[]
+
+  post_likes  PostLike[]
+  post_hearts PostHeart[]
+  post_views  PostView[]
+
+  groups           UserGroup[]
+  user_permissions UserPermission[]
+  admin_logs       DjangoAdminLog[]
+
+  @@map("user_app_user")
 }
 
-model UserAvatar {
+model EmailVerification {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  code       String
+  new_email  String?
+  expires_at DateTime
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("user_app_emailverification")
+}
+
+model UserGroup {
+  id       Int @id @default(autoincrement())
+  user_id  Int
+  group_id Int
+
+  user  User      @relation(fields: [user_id], references: [id])
+  group AuthGroup @relation(fields: [group_id], references: [id])
+
+  @@unique([user_id, group_id])
+  @@map("user_app_user_groups")
+}
+
+model UserPermission {
+  id            Int @id @default(autoincrement())
+  user_id       Int
+  permission_id Int
+
+  user       User           @relation(fields: [user_id], references: [id])
+  permission AuthPermission @relation(fields: [permission_id], references: [id])
+
+  @@unique([user_id, permission_id])
+  @@map("user_app_user_user_permissions")
+}
+
+model AuthGroup {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  permissions AuthGroupPermission[]
+  users       UserGroup[]
+
+  @@map("auth_group")
+}
+
+model AuthGroupPermission {
+  id            Int @id @default(autoincrement())
+  group_id      Int
+  permission_id Int
+
+  group      AuthGroup      @relation(fields: [group_id], references: [id])
+  permission AuthPermission @relation(fields: [permission_id], references: [id])
+
+  @@unique([group_id, permission_id])
+  @@map("auth_group_permissions")
+}
+
+model AuthPermission {
   id              Int    @id @default(autoincrement())
-  image           String
-  userId          Int
-  user            User   @relation("OwnedAvatars", fields: [userId], references: [id])
-  currentForUsers User[] @relation("CurrentAvatar")
+  name            String
+  content_type_id Int
+  codename        String
+
+  content_type DjangoContentType @relation(fields: [content_type_id], references: [id])
+
+  groups AuthGroupPermission[]
+  users  UserPermission[]
+
+  @@unique([content_type_id, codename])
+  @@map("auth_permission")
+}
+
+model DjangoContentType {
+  id        Int    @id @default(autoincrement())
+  app_label String
+  model     String
+
+  permissions AuthPermission[]
+  admin_logs  DjangoAdminLog[]
+
+  @@unique([app_label, model])
+  @@map("django_content_type")
+}
+
+model DjangoAdminLog {
+  id              Int      @id @default(autoincrement())
+  action_time     DateTime @default(now())
+  object_id       String?
+  object_repr     String
+  action_flag     Int
+  change_message  String
+  content_type_id Int?
+  user_id         Int
+
+  content_type DjangoContentType? @relation(fields: [content_type_id], references: [id])
+  user         User               @relation(fields: [user_id], references: [id])
+
+  @@map("django_admin_log")
+}
+
+model DjangoMigration {
+  id      Int      @id @default(autoincrement())
+  app     String
+  name    String
+  applied DateTime
+
+  @@map("django_migrations")
+}
+
+model DjangoSession {
+  session_key  String   @id
+  session_data String
+  expire_date  DateTime
+
+  @@map("django_session")
+}
+
+model Profile {
+  id                 Int       @id @default(autoincrement())
+  user_id            Int       @unique
+  birth_date         DateTime?
+  signature          String?
+  avatar             String?
+  pseudonym          String?
+  is_image_signature Boolean   @default(false)
+  is_text_signature  Boolean   @default(false)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  albums Album[]
+
+  friends_from ProfileFriend[] @relation("ProfileFriendsFrom")
+  friends_to   ProfileFriend[] @relation("ProfileFriendsTo")
+
+  friend_requests_sent     FriendRequest[] @relation("FriendRequestFrom")
+  friend_requests_received FriendRequest[] @relation("FriendRequestTo")
+
+  @@map("profile_app_profile")
+}
+
+model ProfileFriend {
+  id              Int @id @default(autoincrement())
+  from_profile_id Int
+  to_profile_id   Int
+
+  from_profile Profile @relation("ProfileFriendsFrom", fields: [from_profile_id], references: [id])
+  to_profile   Profile @relation("ProfileFriendsTo", fields: [to_profile_id], references: [id])
+
+  @@unique([from_profile_id, to_profile_id])
+  @@map("profile_app_profile_friends")
+}
+
+model FriendRequest {
+  id              Int      @id @default(autoincrement())
+  from_profile_id Int
+  to_profile_id   Int
+  created_at      DateTime @default(now())
+
+  from_profile Profile @relation("FriendRequestFrom", fields: [from_profile_id], references: [id])
+  to_profile   Profile @relation("FriendRequestTo", fields: [to_profile_id], references: [id])
+
+  @@map("profile_app_friendrequest")
 }
 
 model Album {
-  id     Int          @id @default(autoincrement())
-  name   String
-  topic  String?
-  year   String?
-  images AlbumImage[]
-  userId Int
-  user   User         @relation(fields: [userId], references: [id])
+  id         Int      @id @default(autoincrement())
+  name       String
+  theme      String?
+  year       Int?
+  created_at DateTime @default(now())
+  is_shown   Boolean  @default(true)
+  is_default Boolean  @default(false)
+  profile_id Int
+
+  profile Profile      @relation(fields: [profile_id], references: [id])
+  images  AlbumImage[]
+
+  @@map("profile_app_album")
 }
 
 model AlbumImage {
-  id      Int    @id @default(autoincrement())
-  image   String
-  albumId Int
-  album   Album  @relation(fields: [albumId], references: [id])
-}
+  id         Int      @id @default(autoincrement())
+  image      String
+  created_at DateTime @default(now())
+  is_shown   Boolean  @default(true)
+  album_id   Int
 
-model Friendship {
-  id         Int    @id @default(autoincrement())
-  status     String
-  senderId   Int
-  sender     User   @relation("Sender", fields: [senderId], references: [id])
-  receiverId Int
-  receiver   User   @relation("Receiver", fields: [receiverId], references: [id])
+  album Album @relation(fields: [album_id], references: [id])
+
+  @@map("profile_app_albumimage")
 }
 
 model Post {
-  id           Int          @id @default(autoincrement())
-  title        String
-  topic        String?
-  description  String?
-  link         String?
-  heartLike    Int          @default(0)
-  thumbsUpLike Int          @default(0)
-  views        Int          @default(0)
-  images       PostImage[]
-  authorId     Int
-  author       User         @relation(fields: [authorId], references: [id])
-  hashtags     PostHashtag[]
+  id         Int      @id @default(autoincrement())
+  title      String
+  topic      String?
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  author_id  Int
+
+  author User @relation(fields: [author_id], references: [id])
+
+  images PostImage[]
+  links  PostLink[]
+  tags   PostTag[]
+
+  likes  PostLike[]
+  hearts PostHeart[]
+  views  PostView[]
+
+  @@map("post_app_post")
+}
+
+model Tag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  posts PostTag[]
+
+  @@map("post_app_tag")
+}
+
+model PostTag {
+  id      Int @id @default(autoincrement())
+  post_id Int
+  tag_id  Int
+
+  post Post @relation(fields: [post_id], references: [id])
+  tag  Tag  @relation(fields: [tag_id], references: [id])
+
+  @@unique([post_id, tag_id])
+  @@map("post_app_post_tags")
 }
 
 model PostImage {
-  id     Int    @id @default(autoincrement())
-  url    String
-  postId Int
-  post   Post   @relation(fields: [postId], references: [id])
+  id               Int     @id @default(autoincrement())
+  original_image   String
+  compressed_image String?
+  post_id          Int
+
+  post Post @relation(fields: [post_id], references: [id])
+
+  @@map("post_app_postimage")
 }
 
-model Hashtag {
-  id    Int    @id @default(autoincrement())
-  title String @unique
-  posts PostHashtag[]
+model PostLink {
+  id      Int    @id @default(autoincrement())
+  url     String
+  post_id Int
+
+  post Post @relation(fields: [post_id], references: [id])
+
+  @@map("post_app_postlink")
 }
 
-model PostHashtag {
-  postId    Int
-  post      Post    @relation(fields: [postId], references: [id])
-  hashtagId Int
-  hashtag   Hashtag @relation(fields: [hashtagId], references: [id])
+model PostLike {
+  id      Int @id @default(autoincrement())
+  user_id Int
+  post_id Int
 
-  @@id([postId, hashtagId])
+  user User @relation(fields: [user_id], references: [id])
+  post Post @relation(fields: [post_id], references: [id])
+
+  @@unique([user_id, post_id])
+  @@map("post_app_postlike")
+}
+
+model PostHeart {
+  id      Int @id @default(autoincrement())
+  user_id Int
+  post_id Int
+
+  user User @relation(fields: [user_id], references: [id])
+  post Post @relation(fields: [post_id], references: [id])
+
+  @@unique([user_id, post_id])
+  @@map("post_app_postheart")
+}
+
+model PostView {
+  id      Int @id @default(autoincrement())
+  user_id Int
+  post_id Int
+
+  user User @relation(fields: [user_id], references: [id])
+  post Post @relation(fields: [post_id], references: [id])
+
+  @@unique([user_id, post_id])
+  @@map("post_app_postview")
 }
 
 model Chat {
-  id            Int       @id @default(autoincrement())
-  avatar        String?
-  title         String?
-  members       User[]    @relation("ChatMembers")
-  messages      Message[] @relation("ChatMessages")
-  lastMessageId Int?      @unique
-  lastMessage   Message?  @relation("LastMessage", fields: [lastMessageId], references: [id])
+  id       Int     @id @default(autoincrement())
+  name     String?
+  is_group Boolean @default(false)
+  avatar   String?
+
+  users    ChatUser[]
+  messages Message[]
+
+  @@map("chat_app_chat")
+}
+
+model ChatUser {
+  id      Int @id @default(autoincrement())
+  chat_id Int
+  user_id Int
+
+  chat Chat @relation(fields: [chat_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
+
+  @@unique([chat_id, user_id])
+  @@map("chat_app_chat_users")
 }
 
 model Message {
-  id             Int            @id @default(autoincrement())
-  text           String?
-  createdAt      DateTime       @default(now())
-  images         MessageImage[]
-  authorId       Int
-  author         User           @relation(fields: [authorId], references: [id])
-  chatId         Int
-  chat           Chat           @relation("ChatMessages", fields: [chatId], references: [id])
-  lastMessageFor Chat?          @relation("LastMessage")
+  id         Int      @id @default(autoincrement())
+  text       String
+  created_at DateTime @default(now())
+  chat_id    Int
+  sender_id  Int
+
+  chat   Chat @relation(fields: [chat_id], references: [id])
+  sender User @relation("MessageSender", fields: [sender_id], references: [id])
+
+  images  MessageImage[]
+  readers MessageReader[]
+
+  @@map("chat_app_message")
+}
+
+model MessageReader {
+  id         Int @id @default(autoincrement())
+  message_id Int
+  user_id    Int
+
+  message Message @relation(fields: [message_id], references: [id])
+  user    User    @relation(fields: [user_id], references: [id])
+
+  @@unique([message_id, user_id])
+  @@map("chat_app_message_readers")
 }
 
 model MessageImage {
-  id        Int     @id @default(autoincrement())
-  url       String
-  messageId Int
-  message   Message @relation(fields: [messageId], references: [id])
-}
+  id         Int    @id @default(autoincrement())
+  image      String
+  message_id Int
 
-model GmailCode {
-  id   Int @unique @id @default(autoincrement())
-  code Int @unique
+  message Message @relation(fields: [message_id], references: [id])
+
+  @@map("chat_app_messageimage")
 }

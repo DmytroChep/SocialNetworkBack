@@ -2,36 +2,30 @@ import { AlbumRepository } from "./Album.repository";
 import type { ServiceContract } from "./Album.types";
 
 export const AlbumService: ServiceContract = {
-	create: async (albumData) => {
-		const response = await AlbumRepository.create(albumData);
-		return response;
-	},
-	getById: async (id) => {
-		const response = await AlbumRepository.getById(id);
-		return response;
-	},
-	getByUserId: async (userId) => {
-		const response = await AlbumRepository.getByUserId(userId);
-		return response;
-	},
-	update: async (id, albumData) => {
-		const response = await AlbumRepository.update(id, albumData);
-		return response;
-	},
-	delete: async (id) => {
-		const response = await AlbumRepository.delete(id);
-		return response;
-	},
-	addImages: async (albumId, images) => {
-		const response = await AlbumRepository.addImages(albumId, images);
-		return response;
-	},
-	deleteImage: async (imageId) => {
-		const response = await AlbumRepository.deleteImage(imageId);
-		return response;
-	},
-	replaceImages: async (albumId, images) => {
-		const response = await AlbumRepository.replaceImages(albumId, images);
-		return response;
-	},
+	create: async (albumData) =>
+		AlbumRepository.create(albumData),
+
+	getById: async (id) =>
+		AlbumRepository.getById(id),
+
+	getByProfileId: async (profileId) =>
+		AlbumRepository.getByProfileId(profileId),
+
+	getByUserId: async (userId) =>
+		AlbumRepository.getByUserId(userId),
+
+	update: async (id, albumData) =>
+		AlbumRepository.update(id, albumData),
+
+	delete: async (id) =>
+		AlbumRepository.delete(id),
+
+	addImages: async (albumId, images) =>
+		AlbumRepository.addImages(albumId, images),
+
+	deleteImage: async (imageId) =>
+		AlbumRepository.deleteImage(imageId),
+
+	replaceImages: async (albumId, images) =>
+		AlbumRepository.replaceImages(albumId, images),
 };

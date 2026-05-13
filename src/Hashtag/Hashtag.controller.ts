@@ -3,14 +3,14 @@ import type { ControllerContract } from "./Hashtag.types";
 
 export const HashtagController: ControllerContract = {
 	create: async (req, res) => {
-		const { title } = req.body;
+		const name = req.body.name ?? req.body.title;
 
-		if (!title) {
+		if (!name) {
 			res.status(400).json("title is required");
 			return;
 		}
 
-		const response = await HashtagService.create({ title });
+		const response = await HashtagService.create({ name });
 
 		if (typeof response === "string") {
 			res.status(400).json(response);
@@ -53,19 +53,19 @@ export const HashtagController: ControllerContract = {
 	},
 	update: async (req, res) => {
 		const id = Number(req.params.id);
-		const { title } = req.body;
+		const name = req.body.name ?? req.body.title;
 
 		if (!id) {
 			res.status(400).json("invalid hashtag id");
 			return;
 		}
 
-		if (!title) {
+		if (!name) {
 			res.status(400).json("title is required");
 			return;
 		}
 
-		const response = await HashtagService.update(id, { title });
+		const response = await HashtagService.update(id, { name });
 
 		if (typeof response === "string") {
 			res.status(400).json(response);

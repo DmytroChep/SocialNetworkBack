@@ -1,25 +1,37 @@
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma";
 
-export type Hashtag = Prisma.HashtagGetPayload<{}>;
-export type HashtagWithPosts = Prisma.HashtagGetPayload<{ include: { posts: true } }>;
-export type CreateHashtag = Prisma.HashtagUncheckedCreateInput;
-export type UpdateHashtag = Prisma.HashtagUncheckedUpdateInput;
+export type Hashtag = Prisma.TagGetPayload<{}>;
+export type HashtagWithPosts = Prisma.TagGetPayload<{
+	include: {
+		posts: {
+			include: {
+				post: true;
+			};
+		};
+	};
+}>;
+export type CreateHashtag = Prisma.TagUncheckedCreateInput;
+export type UpdateHashtag = Prisma.TagUncheckedUpdateInput;
 
 export interface RepositoryContract {
-	create: (hashtagData: CreateHashtag) => Promise<Hashtag | string>;
-	getAll: () => Promise<Hashtag[] | string>;
-	getById: (id: number) => Promise<HashtagWithPosts | string | null>;
-	update: (id: number, hashtagData: UpdateHashtag) => Promise<Hashtag | string>;
+	create: (hashtagData: CreateHashtag) => Promise<any | string>;
+	getAll: () => Promise<any[] | string>;
+	getById: (id: number) => Promise<any | string | null>;
+	update: (id: number, hashtagData: UpdateHashtag) => Promise<any | string>;
 	delete: (id: number) => Promise<string>;
+	getOrCreate: (name: string) => Promise<any | string>;
+	getOrCreateMultiple: (names: string[]) => Promise<any[] | string>;
 }
 
 export interface ServiceContract {
-	create: (hashtagData: CreateHashtag) => Promise<Hashtag | string>;
-	getAll: () => Promise<Hashtag[] | string>;
-	getById: (id: number) => Promise<HashtagWithPosts | string | null>;
-	update: (id: number, hashtagData: UpdateHashtag) => Promise<Hashtag | string>;
+	create: (hashtagData: CreateHashtag) => Promise<any | string>;
+	getAll: () => Promise<any[] | string>;
+	getById: (id: number) => Promise<any | string | null>;
+	update: (id: number, hashtagData: UpdateHashtag) => Promise<any | string>;
 	delete: (id: number) => Promise<string>;
+	getOrCreate: (name: string) => Promise<any | string>;
+	getOrCreateMultiple: (names: string[]) => Promise<any[] | string>;
 }
 
 export interface ControllerContract {

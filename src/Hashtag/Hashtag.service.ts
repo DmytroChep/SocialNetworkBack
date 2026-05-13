@@ -22,4 +22,12 @@ export const HashtagService: ServiceContract = {
 		const response = await HashtagRepository.delete(id);
 		return response;
 	},
+	getOrCreate: async (name) => {
+		const response = await HashtagRepository.getOrCreate(name);
+		return response;
+	},
+	getOrCreateMultiple: async (names) => {
+		const response = await HashtagRepository.getOrCreateMultiple(names);
+		return response;
+	},
 };

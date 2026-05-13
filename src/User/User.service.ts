@@ -1,106 +1,84 @@
 import jwt from "jsonwebtoken";
 import { ENV } from "../config/env";
-import { UserRepository } from "./User.repository";
-import type { Email, ServiceContract } from "./User.types";
 import { sendEmail } from "../config/email";
-import fs from "fs";
-import path from "path";
+import { UserRepository } from "./User.repository";
+import type { ServiceContract } from "./User.types";
 
+export const parseId = (id?: string): number | null => {
+	if (!id) return null;
+
+	const parsed = Number(id);
+
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		return null;
+	}
+
+	return parsed;
+};
 export const UserService: ServiceContract = {
-    registration: async (UserData) => {
-        const user = await UserRepository.registration(UserData);
-
-        if (typeof user === "string") {
-            return user;
-        }
-
-        return jwt.sign({ email: user.email }, ENV.SECRET_KEY, {
-            expiresIn: "7d",
-        });
-    },
-    login: async (UserData) => {
-        const user = await UserRepository.login(UserData);
-        if (!user) {
-            return "user not found";
-        }
-        if (typeof user === "string") {
-            return user;
-        }
-
-        return jwt.sign({ email: user.email }, ENV.SECRET_KEY, {
-            expiresIn: "30d",
-        });
-    },
-    me: async (JWT) => {
-
-        const email = jwt.verify(JWT, ENV.SECRET_KEY) as Email;
-
-        const user = await UserRepository.me(email.email);
-
-        if (typeof user === "string") {
-            return user;
-        }
-
-        const { password, ...userWithoutPassword } = user;
-
-
-        return userWithoutPassword;
-    },
-    updateUser: async (userData, id) => {
-        const userId = Number(id)
-
-        if (isNaN(userId)){
-            return "user id must be a number"
-        }
-
-        const response = await UserRepository.updateUser(userData, userId);
-
-		return response;
+	registration: async (userData) => {
+		const user = await UserRepository.registration(userData);
+		if (typeof user === "string") {
+			return user;
+		}
+		return jwt.sign({ email: user.email }, ENV.SECRET_KEY, { expiresIn: "7d" });
 	},
-	sendCodeVerify: async (gmail) => {
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(gmail)) {
-			return "invalid email format";
+
+		login: async (userData) => {
+			const user = await UserRepository.login(userData);
+			if (typeof user === "string") {
+				return user;
+			}
+			if (!user) {
+				return "user doesn't exists";
+			}
+			return jwt.sign({ email: user.email }, ENV.SECRET_KEY, { expiresIn: "30d" });
+		},
+
+	me: async (token) => {
+		const decoded = jwt.verify(token, ENV.SECRET_KEY) as { email: string };
+		const user = await UserRepository.me(decoded.email);
+		if (typeof user === "string") {
+			return user;
+		}
+		const { password, ...userWithoutPassword } = user;
+		return userWithoutPassword;
+	},
+
+	updateUser: async (userData, id) => {
+		const userId = parseId(id);
+		if (!userId) {
+			return "invalid user id";
+		}
+		return UserRepository.updateUser(userData, userId);
+	},
+
+	sendCodeVerify: async (userGmail) => {
+		const code = String(Math.floor(100000 + Math.random() * 900000));
+		const result = await UserRepository.sendCodeVerify(userGmail, code);
+
+		if (result !== "status success") {
+			return result;
 		}
 
-		const code = Math.floor(100000 + Math.random() * 900000);
-		console.log(gmail);
-		try {
-			await sendEmail(
-				"hi! Here is your auth code:",
-				`
-                <div style="display: block; text-align: center; font-family: sans-serif;">
-                    <p>your code is:</p>
-                    <h1 style="font-size: 32px; color: #333; background-color: #6d6d6dff">${code}<a href="http:
-                    <hr style="width: 50%; margin: 20px auto;">
-                </div>`,
-				`${gmail}`,
-			);
-		} catch (error) {
-			console.log(error);
-			return String(error);
-		}
+		await sendEmail(
+			"Email verification",
+			`<p>Your verification code: <b>${code}</b></p>`,
+			userGmail,
+		);
 
-		const status = await UserRepository.sendCodeVerify(code);
-		return status;
+		return result;
 	},
-	checkIsCodeExists: async (code) => {
-		const isCodeExists = await UserRepository.checkIsCodeExists(code);
 
-		return isCodeExists
+	checkIsCodeExists: async (email, code) => {
+		return UserRepository.checkIsCodeExists(email, code);
 	},
+
 	updatePassword: async (userData) => {
-		const response = await UserRepository.updatePassword(userData);
-
-		return response;
+		return UserRepository.updatePassword(userData);
 	},
-    updateAvatar: async (imagePath, userId) => {
-        const response = await UserRepository.updateAvatar(imagePath, userId);
 
-        if (!response) {
-            return "error updating avatar";
-        }
-
-        return response;
-    }
+	updateAvatar: async (image, userId) => {
+		return UserRepository.updateAvatar(image, userId);
+	},
 };

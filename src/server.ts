@@ -7,7 +7,7 @@ import path from "path";
 import { PostRouter } from "./Post/Post.router";
 
 const PORT = 8000;
-const HOST = "192.168.0.197"
+const HOST = "192.168.0.193"
 const app = express();
 
 
