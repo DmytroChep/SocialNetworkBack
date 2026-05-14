@@ -81,4 +81,12 @@ export const UserService: ServiceContract = {
 	updateAvatar: async (image, userId) => {
 		return UserRepository.updateAvatar(image, userId);
 	},
+
+	userById: async (id) => {
+		const userId = parseId(id);
+		if (!userId) {
+			return "invalid user id";
+		}
+		return UserRepository.userById(userId);
+	},
 };

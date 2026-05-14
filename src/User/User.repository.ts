@@ -330,4 +330,35 @@ export const UserRepository: RepositoryContract = {
 			return "error updating avatar";
 		}
 	},
+
+	userById: async (userId) => {
+		try {
+			const user = await client.user.findUnique({
+				where: { id: userId },
+				include: {
+					profile: {
+						include: {
+							albums: {
+								include: { images: true },
+							},
+							pseudonym: true,
+						}
+					},
+				},
+			});
+
+			if (!user) {
+				return "user not found";
+			}
+
+			return serializeUser(user);
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError) {
+				if (error.code === "P2025") {
+					return "user not found";
+				}
+			}
+			throw error;
+		}
+	},
 };

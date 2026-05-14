@@ -80,4 +80,16 @@ export const UserController: ControllerContract = {
         }
         res.status(200).json(response);
     },
+    async userById(req, res) {
+        const userId = req.params.userId;
+
+        const response = await UserService.userById(userId);
+
+        if (typeof response === "string") {
+            res.status(400).json(response);
+            return;
+        }
+
+        res.status(200).json(response);
+    }
 };

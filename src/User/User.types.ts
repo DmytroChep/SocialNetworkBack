@@ -36,6 +36,7 @@ export interface RepositoryContract {
 	checkIsCodeExists: (email: string | undefined, code: string) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any>;
+	userById: (userId: number) => Promise<any>
 }
 
 export interface ServiceContract {
@@ -50,6 +51,7 @@ export interface ServiceContract {
 	checkIsCodeExists: (email: string | undefined, code: string) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any | string>;
+	userById: (id: string) => Promise<any | string>
 }
 
 export interface ControllerContract {
@@ -92,4 +94,8 @@ export interface ControllerContract {
 		res: Response<string>,
 	) => Promise<void>;
 	updateAvatar: (req: Request, res: Response) => Promise<void>;
+	userById: (
+		req: Request<{ userId: string }, any | string, object, object>,
+		res: Response<any | string>,
+	) => Promise<void>;
 }
