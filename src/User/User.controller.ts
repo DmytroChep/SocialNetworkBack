@@ -70,9 +70,9 @@ export const UserController: ControllerContract = {
 		res.status(200).json(response);
 	},
     updateAvatar: async (req, res) => {
-        const { imagePath, userId } = req.body;
+        const { imagePath, image, userId, user_id } = req.body;
 
-        const response = await UserService.updateAvatar(imagePath, userId);
+        const response = await UserService.updateAvatar(imagePath || image, String(userId || user_id || ""));
 
         if (response === "error updating avatar") {
             res.status(400).json(response);
@@ -91,5 +91,9 @@ export const UserController: ControllerContract = {
         }
 
         res.status(200).json(response);
-    }
+    },
+    allUsers: async (req, res) => {
+        const response = await UserService.allUsers();
+        res.status(200).json(response);
+    },
 };

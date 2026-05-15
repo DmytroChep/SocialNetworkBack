@@ -89,4 +89,7 @@ export const UserService: ServiceContract = {
 		}
 		return UserRepository.userById(userId);
 	},
+    allUsers: async () => {
+        return await UserRepository.allUsers();
+    },
 };

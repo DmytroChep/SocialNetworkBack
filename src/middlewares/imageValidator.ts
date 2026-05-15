@@ -13,8 +13,10 @@ function writeImage(fileName: string, data: string) {
 }
 
 export const validateBase64 = (req: Request, res: Response, next: NextFunction) => {
-  const { image, profileId, userId } = req.body;
-  if (!image || (!profileId && !userId)) {
+  const { image, profileId, userId, user_id } = req.body;
+  const authorId = profileId || userId || user_id;
+
+  if (!image || !authorId) {
     return res.status(400).json({ error: 'image and author id are required' });
   }
   const regex = /^data:image\/(png|jpg|jpeg);base64,/;
@@ -24,9 +26,9 @@ export const validateBase64 = (req: Request, res: Response, next: NextFunction) 
   const mimeMatch = image.match(regex);
   const mimeType = mimeMatch ? mimeMatch[1] : 'jpg';
   const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-  const authorId = profileId || userId;
   const fileName = `avatar_${authorId}_${Date.now()}.${mimeType === 'jpeg' ? 'jpg' : mimeType}`;
   req.body.imagePath = writeImage(fileName, base64Data);
+  req.body.userId = userId || user_id;
   next();
 };
 

@@ -37,6 +37,7 @@ export interface RepositoryContract {
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any>;
 	userById: (userId: number) => Promise<any>
+	allUsers: () => Promise<UserWithoutPassword[]>;
 }
 
 export interface ServiceContract {
@@ -44,14 +45,15 @@ export interface ServiceContract {
 	login: (UserData: LoginUser) => Promise<LoginUser | string>;
 	me: (JWT: string) => Promise<UserWithoutPassword | string | null>;
 	updateUser: (
-		userData: any,
+		userData: UpdateUser,
 		id: string,
-	) => Promise<any | string>;
+	) => Promise<UpdateUser | string>;
 	sendCodeVerify: (userGmail: string) => Promise<string>;
 	checkIsCodeExists: (email: string | undefined, code: string) => Promise<boolean | string>;
 	updatePassword: (userData: IUserUpdatePassword) => Promise<string>;
 	updateAvatar: (image: string, userId: string) => Promise<any | string>;
 	userById: (id: string) => Promise<any | string>
+	allUsers: () => Promise<UserWithoutPassword[]>;
 }
 
 export interface ControllerContract {
@@ -98,4 +100,5 @@ export interface ControllerContract {
 		req: Request<{ userId: string }, any | string, object, object>,
 		res: Response<any | string>,
 	) => Promise<void>;
+	allUsers: (req: Request, res: Response) => Promise<void>;
 }

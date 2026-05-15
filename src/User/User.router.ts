@@ -8,6 +8,7 @@ export const userRouter = Router();
 userRouter.post("/user/registration", UserController.registration);
 userRouter.post("/user/login", UserController.login);
 userRouter.get("/user/me", authMiddleware, UserController.me);
+userRouter.get("/users/all", authMiddleware, UserController.allUsers);
 userRouter.get("/user/:userId", UserController.userById);
 userRouter.patch("/user/:id", authMiddleware, UserController.updateUser);
 userRouter.post("/user/email-verification", UserController.sendCodeVerify);

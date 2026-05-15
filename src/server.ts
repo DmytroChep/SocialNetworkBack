@@ -5,6 +5,7 @@ import { AlbumRouter } from "./Album/Album.router";
 import { HashtagRouter } from "./Hashtag/Hashtag.router";
 import path from "path";
 import { PostRouter } from "./Post/Post.router";
+import { friendshipRouter } from "./Friendship/Friendship.router";
 
 const PORT = 8000;
 const HOST = "192.168.0.193"
@@ -26,6 +27,7 @@ app.use(userRouter);
 app.use(AlbumRouter);
 app.use(HashtagRouter);
 app.use(PostRouter)
+app.use(friendshipRouter)
 
 app.listen(PORT, HOST, () => {
 	console.log(`http://${HOST}:${PORT}`);

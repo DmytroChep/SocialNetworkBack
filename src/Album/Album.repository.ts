@@ -104,7 +104,6 @@ export const AlbumRepository: RepositoryContract = {
 			return "error deleting album";
 		}
 	},
-
 	addImages: async (albumId, images) => {
 		try {
 			const album = await client.album.update({

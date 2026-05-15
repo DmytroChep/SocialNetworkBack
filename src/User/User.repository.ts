@@ -1,7 +1,8 @@
 import { compare, hash } from "bcrypt";
 import { client } from "../config/client";
 import { Prisma } from "../generated/prisma";
-import type { RepositoryContract } from "./User.types";
+import type { RepositoryContract, UserWithoutPassword } from "./User.types";
+import { error } from "node:console";
 
 type EmailVerificationRow = {
 	id: number;
@@ -341,7 +342,6 @@ export const UserRepository: RepositoryContract = {
 							albums: {
 								include: { images: true },
 							},
-							pseudonym: true,
 						}
 					},
 				},
@@ -360,5 +360,24 @@ export const UserRepository: RepositoryContract = {
 			}
 			throw error;
 		}
+	},
+	allUsers: async () => {
+		const users = await client.user.findMany({
+			include: {
+					profile: {
+						include: {
+							albums: {
+								include: { images: true },
+							},
+						},
+					},
+				},
+			orderBy: { id: "desc" },
+		});
+
+		return users.map((user) => {
+			const { password, ...userWithoutPassword } = serializeUser(user);
+			return userWithoutPassword;
+		}) as UserWithoutPassword[];
 	},
 };

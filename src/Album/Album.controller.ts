@@ -335,5 +335,5 @@ export const AlbumController: ControllerContract = {
 		);
 
 		res.status(200).json(response);
-	},
+	}
 };
