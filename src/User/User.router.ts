@@ -11,6 +11,7 @@ userRouter.get("/user/me", authMiddleware, UserController.me);
 userRouter.get("/users/all", authMiddleware, UserController.allUsers);
 userRouter.get("/user/:userId", UserController.userById);
 userRouter.patch("/user/:id", authMiddleware, UserController.updateUser);
+userRouter.delete("/user/:id", authMiddleware, UserController.deleteUser);
 userRouter.post("/user/email-verification", UserController.sendCodeVerify);
 userRouter.get("/user/email-verification", UserController.checkIsCodeExists);
 userRouter.patch("/user/password", UserController.updatePassword);

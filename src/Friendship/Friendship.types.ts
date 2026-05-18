@@ -33,9 +33,21 @@ export type UserFriendships = {
 	friends: ProfileFriendWithProfiles[];
 	incomingRequests: FriendRequestWithProfiles[];
 	outgoingRequests: FriendRequestWithProfiles[];
+	blacklistedRequests: FriendRequestWithProfiles[];
 };
 
-export type FriendshipStatusAction = "ACCEPTED" | "REJECTED" | "PENDING";
+export type FriendshipStatusAction =
+	| "ACCEPTED"
+	| "REJECTED"
+	| "PENDING"
+	| "BLACKLISTED";
+
+export const FRIENDSHIP_STATUSES: FriendshipStatusAction[] = [
+	"ACCEPTED",
+	"REJECTED",
+	"PENDING",
+	"BLACKLISTED",
+];
 
 export const profileInclude = {
 	user: {
@@ -50,22 +62,30 @@ export const profileInclude = {
 } satisfies Prisma.ProfileInclude;
 
 export interface RepositoryContract {
-    userFriendships: (userId: number) => Promise<UserFriendships | string>;
-    changeStatus: (id: number, status: FriendshipStatusAction) => Promise<any>;
-    delete: (id: number) => Promise<any>;
-    create: (senderId: number, receiverId: number) => Promise<any>;
+	userFriendships: (userId: number) => Promise<UserFriendships | string>;
+	changeStatus: (id: number, status: FriendshipStatusAction) => Promise<any>;
+	delete: (id: number) => Promise<any>;
+	create: (
+		senderId: number,
+		receiverId: number,
+		status?: FriendshipStatusAction,
+	) => Promise<any>;
 }
 
 export interface ServiceContract {
-    userFriendships: (userId: string) => Promise<UserFriendships | string>;
-    changeStatus: (id: number, status: string) => Promise<any>;
-    delete: (id: number) => Promise<any>;
-    createRequest: (senderId: number, receiverId: number) => Promise<any>;
+	userFriendships: (userId: string) => Promise<UserFriendships | string>;
+	changeStatus: (id: number, status: string) => Promise<any>;
+	delete: (id: number) => Promise<any>;
+	createRequest: (
+		senderId: number,
+		receiverId: number,
+		status?: string,
+	) => Promise<any>;
 }
 
 export interface ControllerContract {
-    userFriendships: (req: Request, res: Response) => Promise<void>;
-    changeStatus: (req: Request, res: Response) => Promise<void>;
-    deleteFriendship: (req: Request, res: Response) => Promise<void>;
-    createRequest: (req: Request, res: Response) => Promise<void>;
+	userFriendships: (req: Request, res: Response) => Promise<void>;
+	changeStatus: (req: Request, res: Response) => Promise<void>;
+	deleteFriendship: (req: Request, res: Response) => Promise<void>;
+	createRequest: (req: Request, res: Response) => Promise<void>;
 }

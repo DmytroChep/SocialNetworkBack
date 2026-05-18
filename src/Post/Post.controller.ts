@@ -3,6 +3,7 @@ import { PostService } from "./Post.service";
 import { HashtagService } from "../Hashtag/Hashtag.service";
 import type { ControllerContract } from "./Post.types";
 import jwt from "jsonwebtoken";
+import { saveDataUriImage } from "../utils/media-files";
 
 const parseId = (value: unknown): number | null => {
 	const id = Number(value);
@@ -45,11 +46,19 @@ const isImageArray = (
 
 const normalizeImages = (
 	images: Array<{ original_image?: string; compressed_image?: string | null; url?: string; image?: string }>,
+	filePrefix: string,
 ) =>
-	images.map((image) => ({
-		original_image: image.original_image ?? image.url ?? image.image ?? "",
-		compressed_image: image.compressed_image ?? null,
-	}));
+	images.map((image, index) => {
+		const originalImage = image.original_image ?? image.url ?? image.image ?? "";
+		const compressedImage = image.compressed_image ?? null;
+
+		return {
+			original_image: saveDataUriImage(originalImage, "posts", filePrefix, index),
+			compressed_image: compressedImage
+				? saveDataUriImage(compressedImage, "posts", `${filePrefix}_compressed`, index)
+				: null,
+		};
+	});
 
 const bad = (res: any, msg: string) => res.status(400).json(msg);
 const unauthorized = (res: any) => res.status(401).json("invalid token");
@@ -131,7 +140,7 @@ export const PostController: ControllerContract = {
 			data.links = { create: postLinks.map(url => ({ url })) };
 
 		if (isImageArray(images))
-			data.images = { create: normalizeImages(images) };
+			data.images = { create: normalizeImages(images, `post_${parsedAuthorId}`) };
 
 		const result = await PostService.create(data);
 		if (typeof result === "string") return bad(res, result);
@@ -268,7 +277,7 @@ export const PostController: ControllerContract = {
 		if (!id) return bad(res, "invalid post id");
 		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		const result = await PostService.addImages(id, normalizeImages(req.body.images));
+		const result = await PostService.addImages(id, normalizeImages(req.body.images, `post_${id}`));
 		if (typeof result === "string") return bad(res, result);
 
 		res.json(result);
@@ -279,7 +288,7 @@ export const PostController: ControllerContract = {
 		if (!id) return bad(res, "invalid post id");
 		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		const result = await PostService.replaceImages(id, normalizeImages(req.body.images));
+		const result = await PostService.replaceImages(id, normalizeImages(req.body.images, `post_${id}`));
 		if (typeof result === "string") return bad(res, result);
 
 		res.json(result);

@@ -46,7 +46,9 @@ const findExistingRequest = (fromProfileId: number, toProfileId: number) => {
 
 const createFriendshipFromRequest = async (
 	request: FriendRequestWithProfiles,
-): Promise<ProfileFriendWithProfiles> => {
+): Promise<ProfileFriendWithProfiles | string> => {
+	if (request.status === "BLACKLISTED") return "friend request is blacklisted";
+
 	return client.$transaction(async (tx) => {
 		const existingFriendship = await tx.profileFriend.findFirst({
 			where: {
@@ -85,32 +87,45 @@ export const FriendshipRepository: RepositoryContract = {
 		const profile = await getProfileByUserId(userId);
 		if (!profile) return "profile not found";
 
-		const [friends, incomingRequests, outgoingRequests] = await Promise.all([
-			client.profileFriend.findMany({
-				where: {
-					OR: [
-						{ from_profile_id: profile.id },
-						{ to_profile_id: profile.id },
-					],
-				},
-				include: friendshipInclude,
-			}),
-			client.friendRequest.findMany({
-				where: { to_profile_id: profile.id },
-				include: friendshipInclude,
-				orderBy: { created_at: "desc" },
-			}),
-			client.friendRequest.findMany({
-				where: { from_profile_id: profile.id },
-				include: friendshipInclude,
-				orderBy: { created_at: "desc" },
-			}),
-		]);
+		const [friends, incomingRequests, outgoingRequests, blacklistedRequests] =
+			await Promise.all([
+				client.profileFriend.findMany({
+					where: {
+						OR: [
+							{ from_profile_id: profile.id },
+							{ to_profile_id: profile.id },
+						],
+					},
+					include: friendshipInclude,
+				}),
+				client.friendRequest.findMany({
+					where: { to_profile_id: profile.id, status: "PENDING" },
+					include: friendshipInclude,
+					orderBy: { created_at: "desc" },
+				}),
+				client.friendRequest.findMany({
+					where: { from_profile_id: profile.id, status: "PENDING" },
+					include: friendshipInclude,
+					orderBy: { created_at: "desc" },
+				}),
+				client.friendRequest.findMany({
+					where: {
+						status: "BLACKLISTED",
+						OR: [
+							{ from_profile_id: profile.id },
+							{ to_profile_id: profile.id },
+						],
+					},
+					include: friendshipInclude,
+					orderBy: { created_at: "desc" },
+				}),
+			]);
 
 		return {
 			friends,
 			incomingRequests,
 			outgoingRequests,
+			blacklistedRequests,
 		} satisfies UserFriendships;
 	},
 
@@ -121,7 +136,14 @@ export const FriendshipRepository: RepositoryContract = {
 		});
 
 		if (!request) return "friend request not found";
-		if (status === "PENDING") return request;
+
+		if (status === "PENDING" || status === "BLACKLISTED") {
+			return client.friendRequest.update({
+				where: { id },
+				data: { status },
+				include: friendshipInclude,
+			});
+		}
 
 		if (status === "REJECTED") {
 			await client.friendRequest.delete({ where: { id } });
@@ -145,7 +167,7 @@ export const FriendshipRepository: RepositoryContract = {
 		}
 	},
 
-	create: async (senderId, receiverId) => {
+	create: async (senderId, receiverId, status = "PENDING") => {
 		const [senderProfile, receiverProfile] = await Promise.all([
 			getProfileByUserId(senderId),
 			getProfileByUserId(receiverId),
@@ -163,12 +185,23 @@ export const FriendshipRepository: RepositoryContract = {
 			senderProfile.id,
 			receiverProfile.id,
 		);
-		if (existingRequest) return existingRequest;
+		if (existingRequest) {
+			if (status === "BLACKLISTED" && existingRequest.status !== "BLACKLISTED") {
+				return client.friendRequest.update({
+					where: { id: existingRequest.id },
+					data: { status: "BLACKLISTED" },
+					include: friendshipInclude,
+				});
+			}
+
+			return existingRequest;
+		}
 
 		return client.friendRequest.create({
 			data: {
 				from_profile_id: senderProfile.id,
 				to_profile_id: receiverProfile.id,
+				status,
 			},
 			include: friendshipInclude,
 		});

@@ -1,5 +1,6 @@
 import { client } from "../config/client";
 import { Prisma } from "../generated/prisma";
+import { deleteMediaFiles } from "../utils/media-files";
 import type { RepositoryContract } from "./Post.types";
 
 const postInclude = {
@@ -19,6 +20,29 @@ const postInclude = {
 	likes: true,
 	hearts: true,
 	views: true,
+};
+
+type PostImagePath = {
+	original_image?: string | null;
+	compressed_image?: string | null;
+};
+
+const getPostImagePaths = (images: PostImagePath[] = []) =>
+	images.flatMap((image) => [image.original_image, image.compressed_image]);
+
+const getCreatedPostImagePaths = (postData: any) =>
+	Array.isArray(postData?.images?.create)
+		? getPostImagePaths(postData.images.create)
+		: [];
+
+const getRemovedPostImagePaths = (
+	previousImages: PostImagePath[],
+	nextImages: PostImagePath[],
+) => {
+	const nextPaths = new Set(getPostImagePaths(nextImages).filter(Boolean));
+	return getPostImagePaths(previousImages).filter(
+		(image) => image && !nextPaths.has(image),
+	);
 };
 
 const serializeUser = (user: any) => {
@@ -77,6 +101,8 @@ const serializePostResult = (value: any) =>
 
 export const PostRepository: RepositoryContract = {
 	create: async (postData) => {
+		const createdImagePaths = getCreatedPostImagePaths(postData);
+
 		try {
 			const post = await client.post.create({
 				data: postData,
@@ -84,6 +110,7 @@ export const PostRepository: RepositoryContract = {
 			});
 			return serializePost(post);
 		} catch (error) {
+			deleteMediaFiles(createdImagePaths);
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
 				return "error creating post";
 			}
@@ -164,20 +191,30 @@ export const PostRepository: RepositoryContract = {
 
 	delete: async (id) => {
 		try {
-			await client.post.update({
+			const post = await client.post.findUnique({
 				where: { id },
-				data: {
-					tags: { deleteMany: {} },
-					images: { deleteMany: {} },
-					links: { deleteMany: {} },
-					likes: { deleteMany: {} },
-					hearts: { deleteMany: {} },
-					views: { deleteMany: {} },
-				},
+				include: { images: true },
 			});
-			await client.post.delete({
-				where: { id },
+
+			if (!post) return "post not found";
+
+			await client.$transaction(async (tx) => {
+				await tx.post.update({
+					where: { id },
+					data: {
+						tags: { deleteMany: {} },
+						images: { deleteMany: {} },
+						links: { deleteMany: {} },
+						likes: { deleteMany: {} },
+						hearts: { deleteMany: {} },
+						views: { deleteMany: {} },
+					},
+				});
+				await tx.post.delete({
+					where: { id },
+				});
 			});
+			deleteMediaFiles(getPostImagePaths(post.images));
 			return "post deleted successfully";
 		} catch (error) {
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -190,6 +227,8 @@ export const PostRepository: RepositoryContract = {
 	},
 
 	addImages: async (postId, images) => {
+		const createdImagePaths = getPostImagePaths(images);
+
 		try {
 			const post = await client.post.update({
 				where: { id: postId },
@@ -202,6 +241,7 @@ export const PostRepository: RepositoryContract = {
 			});
 			return serializePost(post);
 		} catch (error) {
+			deleteMediaFiles(createdImagePaths);
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
 				return "error adding images to post";
 			}
@@ -211,9 +251,16 @@ export const PostRepository: RepositoryContract = {
 
 	deleteImage: async (imageId) => {
 		try {
+			const image = await client.postImage.findUnique({
+				where: { id: imageId },
+			});
+
+			if (!image) return "image not found";
+
 			await client.postImage.delete({
 				where: { id: imageId },
 			});
+			deleteMediaFiles(getPostImagePaths([image]));
 			return "image deleted successfully";
 		} catch (error) {
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -226,7 +273,12 @@ export const PostRepository: RepositoryContract = {
 	},
 
 	replaceImages: async (postId, images) => {
+		const createdImagePaths = getPostImagePaths(images);
+
 		try {
+			const existingImages = await client.postImage.findMany({
+				where: { post_id: postId },
+			});
 			const post = await client.post.update({
 				where: { id: postId },
 				data: {
@@ -237,8 +289,10 @@ export const PostRepository: RepositoryContract = {
 				},
 				include: postInclude,
 			});
+			deleteMediaFiles(getRemovedPostImagePaths(existingImages, images));
 			return serializePost(post);
 		} catch (error) {
+			deleteMediaFiles(createdImagePaths);
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
 				return "error replacing images for post";
 			}

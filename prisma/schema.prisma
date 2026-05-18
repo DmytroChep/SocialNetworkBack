@@ -199,6 +199,7 @@ model FriendRequest {
   from_profile_id Int
   to_profile_id   Int
   created_at      DateTime @default(now())
+  status          String   @default("PENDING")
 
   from_profile Profile @relation("FriendRequestFrom", fields: [from_profile_id], references: [id])
   to_profile   Profile @relation("FriendRequestTo", fields: [to_profile_id], references: [id])
