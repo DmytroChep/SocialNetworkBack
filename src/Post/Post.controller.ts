@@ -52,11 +52,14 @@ const normalizeImages = (
 		const originalImage = image.original_image ?? image.url ?? image.image ?? "";
 		const compressedImage = image.compressed_image ?? null;
 
+		const originalSaved = saveDataUriImage(originalImage, "posts", filePrefix, index);
+		const compressedSaved = compressedImage
+			? saveDataUriImage(compressedImage, "posts", `${filePrefix}_compressed`, index)
+			: originalSaved;
+
 		return {
-			original_image: saveDataUriImage(originalImage, "posts", filePrefix, index),
-			compressed_image: compressedImage
-				? saveDataUriImage(compressedImage, "posts", `${filePrefix}_compressed`, index)
-				: null,
+			original_image: originalSaved,
+			compressed_image: compressedSaved,
 		};
 	});
 
@@ -107,11 +110,11 @@ export const PostController: ControllerContract = {
 
 		// Process hashtags: combine IDs and names
 		try {
-			const allTags: { tag_id: number }[] = [];
+			const allTags: { tag_id: number | bigint }[] = [];
 
 			// Add existing hashtags by ID
 			if (tagIds) {
-				allTags.push(...tagIds.map(id => ({ tag_id: id })));
+				allTags.push(...tagIds.map(id => ({ tag_id: typeof id === 'bigint' ? id : BigInt(id) })));
 			}
 
 			// Create new hashtags from names
@@ -120,7 +123,7 @@ export const PostController: ControllerContract = {
 				if (typeof createdHashtags === "string") {
 					return bad(res, createdHashtags);
 				}
-				allTags.push(...createdHashtags.map((tag: any) => ({ tag_id: tag.id })));
+				allTags.push(...createdHashtags.map((tag: any) => ({ tag_id: typeof tag.id === 'bigint' ? tag.id : BigInt(tag.id) })));
 			}
 
 			if (allTags.length > 0) {

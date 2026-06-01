@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { saveDataUriImage } from "../utils/media-files";
 
-const IMAGE_DATA_URI_REGEX = /^data:image\/(png|jpg|jpeg);base64,/;
+const IMAGE_DATA_URI_REGEX = /^data:image\/(png|jpe?g|webp);base64,/i;
 
 export const validateBase64 = (
     req: Request,

@@ -1,4 +1,4 @@
-import type { Prisma } from "../generated/prisma";
+import type { Prisma } from "@prisma/client";
 import { AlbumService } from "./Album.service";
 import type { ControllerContract } from "./Album.types";
 
@@ -57,13 +57,20 @@ export const AlbumController: ControllerContract = {
 				return;
 			}
 
-			const profileIdValue =
-				typeof profile_id === "number"
-					? profile_id
-					: typeof profileId === "number"
-						? profileId
-						: null;
-			const userIdValue = typeof userId === "number" ? userId : null;
+			const parseNumber = (v: unknown): number | null => {
+				if (typeof v === "number" && Number.isInteger(v) && v > 0) return v;
+				if (typeof v === "string") {
+					const t = v.trim();
+					if (t !== "" && !Number.isNaN(Number(t))) {
+						const n = Number(t);
+						if (Number.isInteger(n) && n > 0) return n;
+					}
+				}
+				return null;
+			};
+
+			const profileIdValue = parseNumber(profile_id) ?? parseNumber(profileId);
+			const userIdValue = parseNumber(userId);
 
 			if (!profileIdValue && !userIdValue) {
 				res.status(400).json("userId is required");
@@ -85,7 +92,7 @@ export const AlbumController: ControllerContract = {
 				return;
 			}
 
-			const albumData: Prisma.AlbumCreateInput = {
+			const albumData: Prisma.profile_app_albumCreateInput = {
 				name: name.trim(),
 
 				theme:
@@ -97,6 +104,9 @@ export const AlbumController: ControllerContract = {
 
 				year: parsedYear,
 
+				is_shown: true,
+				is_default: false,
+				created_at: new Date(),
 				profile: {
 					connect: profileIdValue
 						? { id: profileIdValue }
@@ -104,11 +114,13 @@ export const AlbumController: ControllerContract = {
 				},
 			};
 
+
 			if (isImageArray(images) && images.length > 0) {
 				albumData.images = {
 					create: images.map((img) => ({
 						image: img.image,
 						is_shown: img.is_shown ?? true,
+						created_at: new Date(),
 					})),
 				};
 			}
@@ -205,7 +217,7 @@ export const AlbumController: ControllerContract = {
 				return;
 			}
 
-			const updateData: Prisma.AlbumUpdateInput = {};
+			const updateData: Prisma.profile_app_albumUpdateInput = {};
 
 			if (typeof name === "string") {
 				updateData.name = {
@@ -293,6 +305,7 @@ export const AlbumController: ControllerContract = {
 			images.map((img) => ({
 				image: img.image,
 				is_shown: img.is_shown ?? true,
+				created_at: new Date(),
 			})),
 		);
 
@@ -331,6 +344,7 @@ export const AlbumController: ControllerContract = {
 			images.map((img) => ({
 				image: img.image,
 				is_shown: img.is_shown ?? true,
+				created_at: new Date(),
 			})),
 		);
 

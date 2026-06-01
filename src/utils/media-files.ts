@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 
-type MediaFolder = "albums" | "avatars" | "posts";
+type MediaFolder = "albums" | "avatars" | "posts" | "signatures" | "messages";
 
-const IMAGE_DATA_URI_REGEX = /^data:image\/(png|jpg|jpeg);base64,/;
+const IMAGE_DATA_URI_REGEX = /^data:image\/(png|jpe?g|webp);base64,/i;
 const MEDIA_ROOT = path.resolve(process.cwd(), "media");
 const PROTECTED_MEDIA_PATHS = new Set(["/media/avatars/default_avatar.png"]);
 
 export const DEFAULT_AVATAR_PATH = "/media/avatars/default_avatar.png";
+export const SIGNATURE_MEDIA_PATH = "/media/signatures";
 
 const safeSegment = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+export const isDataUriImage = (value?: string | null): value is string =>
+    typeof value === "string" && IMAGE_DATA_URI_REGEX.test(value);
 
 const normalizePublicMediaPath = (value?: string | null): string | null => {
     if (!value || value.startsWith("data:") || value.startsWith("file:")) {
@@ -53,9 +57,9 @@ export const saveDataUriImage = (
 ): string => {
     if (!IMAGE_DATA_URI_REGEX.test(value)) return value;
 
-    const mimeType = value.match(IMAGE_DATA_URI_REGEX)?.[1] ?? "jpg";
+    const mimeType = (value.match(IMAGE_DATA_URI_REGEX)?.[1] ?? "jpg").toLowerCase();
     const extension = mimeType === "jpeg" ? "jpg" : mimeType;
-    const base64Data = value.replace(/^data:image\/\w+;base64,/, "");
+    const base64Data = value.replace(/^data:image\/\w+;base64,/i, "");
     const dir = path.join(MEDIA_ROOT, folder);
 
     if (!fs.existsSync(dir)) {
@@ -70,6 +74,47 @@ export const saveDataUriImage = (
     fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
 
     return `/media/${folder}/${fileName}`;
+};
+
+export const getSignatureFileName = (value?: string | null): string | null => {
+    if (!value || value.startsWith("data:") || value.startsWith("file:")) return null;
+
+    const publicPath = normalizePublicMediaPath(value);
+    const rawPath = publicPath ?? value.trim();
+    const withoutQuery = rawPath.split("?")[0]?.split("#")[0] ?? rawPath;
+    let decodedPath = withoutQuery;
+
+    try {
+        decodedPath = decodeURIComponent(withoutQuery);
+    } catch {
+        return null;
+    }
+
+    const fileName = path.basename(decodedPath);
+    if (!fileName || fileName === "." || fileName === "..") return null;
+
+    return /^[a-zA-Z0-9_.-]+$/.test(fileName) ? fileName : null;
+};
+
+export const signatureFileNameToPublicPath = (value?: string | null): string | null => {
+    const fileName = getSignatureFileName(value);
+    return fileName ? `${SIGNATURE_MEDIA_PATH}/${fileName}` : null;
+};
+
+export const saveSignatureImage = (value: string | null | undefined, prefix: string): string | null => {
+    if (!value) return null;
+
+    if (isDataUriImage(value)) {
+        const publicPath = saveDataUriImage(value, "signatures", prefix);
+        return getSignatureFileName(publicPath);
+    }
+
+    return getSignatureFileName(value);
+};
+
+export const deleteSignatureFile = (value?: string | null) => {
+    const publicPath = signatureFileNameToPublicPath(value);
+    if (publicPath) deleteMediaFile(publicPath);
 };
 
 export const deleteMediaFile = (value?: string | null) => {

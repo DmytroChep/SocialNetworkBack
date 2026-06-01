@@ -1,5 +1,5 @@
 import { client } from "../config/client";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 import type { RepositoryContract } from "./Hashtag.types";
 
 const serializeHashtag = (tag: any) => ({
@@ -20,8 +20,8 @@ const serializeHashtagResult = (value: any) =>
 export const HashtagRepository: RepositoryContract = {
 	create: async (hashtagData) => {
 		try {
-			const hashtag = await client.tag.create({
-				data: hashtagData,
+			const hashtag = await client.post_app_tag.create({
+				data: hashtagData as any,
 			});
 			return serializeHashtag(hashtag);
 		} catch (error) {
@@ -36,7 +36,7 @@ export const HashtagRepository: RepositoryContract = {
 	},
 	getAll: async () => {
 		try {
-			const hashtags = await client.tag.findMany();
+			const hashtags = await client.post_app_tag.findMany();
 			return serializeHashtagResult(hashtags);
 		} catch (error) {
 			return "error fetching hashtags";
@@ -44,7 +44,7 @@ export const HashtagRepository: RepositoryContract = {
 	},
 	getById: async (id) => {
 		try {
-			const hashtag = await client.tag.findUnique({
+			const hashtag = await client.post_app_tag.findUnique({
 				where: { id },
 				include: { posts: { include: { post: true } } },
 			});
@@ -55,9 +55,9 @@ export const HashtagRepository: RepositoryContract = {
 	},
 	update: async (id, hashtagData) => {
 		try {
-			const hashtag = await client.tag.update({
+			const hashtag = await client.post_app_tag.update({
 				where: { id },
-				data: hashtagData,
+				data: hashtagData as any,
 			});
 			if (!hashtag) {
 				return "hashtag not found";
@@ -74,7 +74,7 @@ export const HashtagRepository: RepositoryContract = {
 	},
 	delete: async (id) => {
 		try {
-			await client.tag.delete({
+			await client.post_app_tag.delete({
 				where: { id },
 			});
 			return "hashtag deleted successfully";
@@ -94,7 +94,7 @@ export const HashtagRepository: RepositoryContract = {
 				return "hashtag name cannot be empty";
 			}
 			
-			const existingHashtag = await client.tag.findUnique({
+			const existingHashtag = await client.post_app_tag.findFirst({
 				where: { name: trimmedName },
 			});
 			
@@ -102,7 +102,7 @@ export const HashtagRepository: RepositoryContract = {
 				return serializeHashtag(existingHashtag);
 			}
 			
-			const newHashtag = await client.tag.create({
+			const newHashtag = await client.post_app_tag.create({
 				data: { name: trimmedName },
 			});
 			
@@ -111,7 +111,7 @@ export const HashtagRepository: RepositoryContract = {
 			if (error instanceof Prisma.PrismaClientKnownRequestError) {
 				if (error.code === "P2002") {
 					// Handle race condition - another process created it
-					const existing = await client.tag.findUnique({
+					const existing = await client.post_app_tag.findFirst({
 						where: { name: name.trim().toLowerCase() },
 					});
 					if (existing) {
@@ -125,7 +125,7 @@ export const HashtagRepository: RepositoryContract = {
 	},
 	getOrCreateMultiple: async (names: string[]) => {
 		try {
-			const results = [];
+			const results: any[] = [];
 			for (const name of names) {
 				const result = await HashtagRepository.getOrCreate(name);
 				if (typeof result === "string") {

@@ -1,6 +1,6 @@
 import { client } from "../config/client";
-import { Prisma } from "../generated/prisma";
-import { deleteMediaFiles } from "../utils/media-files";
+import { Prisma } from "@prisma/client";
+import { deleteMediaFiles, getSignatureFileName } from "../utils/media-files";
 import type { RepositoryContract } from "./Post.types";
 
 const postInclude = {
@@ -46,6 +46,8 @@ const getRemovedPostImagePaths = (
 };
 
 const serializeUser = (user: any) => {
+	const signatureFileName = getSignatureFileName(user.profile?.signature);
+	const signature = signatureFileName ?? (user.profile?.signature?.startsWith("data:") ? null : user.profile?.signature ?? null);
 	const avatar = user.profile?.avatar
 		? {
 				id: user.profile.id,
@@ -56,11 +58,13 @@ const serializeUser = (user: any) => {
 
 	return {
 		...user,
+		profile: user.profile ? { ...user.profile, signature } : user.profile,
 		authorName: user.first_name || user.profile?.pseudonym || null,
 		userName: user.username,
 		status: user.profile?.pseudonym ?? null,
 		birthDate: user.profile?.birth_date ?? null,
-		sign: user.profile?.signature ?? null,
+		sign: signature,
+		signatureImage: signature,
 		currentAvatarId: avatar?.id ?? null,
 		currentAvatar: avatar,
 	};
@@ -104,8 +108,13 @@ export const PostRepository: RepositoryContract = {
 		const createdImagePaths = getCreatedPostImagePaths(postData);
 
 		try {
-			const post = await client.post.create({
-				data: postData,
+			const payload = {
+				...postData,
+				created_at: postData?.created_at ?? new Date(),
+			};
+
+			const post = await client.post_app_post.create({
+				data: payload,
 				include: postInclude,
 			});
 			return serializePost(post);
@@ -120,7 +129,7 @@ export const PostRepository: RepositoryContract = {
 
 	getById: async (id) => {
 		try {
-			const post = await client.post.findUnique({
+			const post = await client.post_app_post.findUnique({
 				where: { id },
 				include: postInclude,
 			});
@@ -133,11 +142,11 @@ export const PostRepository: RepositoryContract = {
 	getAll: async ({ limit = 5, cursor } = {}) => {
 		try {
 			const safeLimit = Math.min(Math.max(limit, 1), 20);
-			const posts = await client.post.findMany({
+			const posts = await client.post_app_post.findMany({
 				take: safeLimit + 1,
 				...(cursor
 					? {
-							cursor: { id: cursor },
+							cursor: { id: Number(cursor) as number },
 							skip: 1,
 						}
 					: {}),
@@ -160,7 +169,7 @@ export const PostRepository: RepositoryContract = {
 
 	getByAuthorId: async (author_id) => {
 		try {
-			const posts = await client.post.findMany({
+			const posts = await client.post_app_post.findMany({
 				where: { author_id },
 				include: postInclude,
 				orderBy: { id: "desc" },
@@ -173,7 +182,7 @@ export const PostRepository: RepositoryContract = {
 
 	update: async (id, postData) => {
 		try {
-			const post = await client.post.update({
+			const post = await client.post_app_post.update({
 				where: { id },
 				data: postData,
 				include: postInclude,
@@ -191,7 +200,7 @@ export const PostRepository: RepositoryContract = {
 
 	delete: async (id) => {
 		try {
-			const post = await client.post.findUnique({
+			const post = await client.post_app_post.findUnique({
 				where: { id },
 				include: { images: true },
 			});
@@ -199,7 +208,7 @@ export const PostRepository: RepositoryContract = {
 			if (!post) return "post not found";
 
 			await client.$transaction(async (tx) => {
-				await tx.post.update({
+				await tx.post_app_post.update({
 					where: { id },
 					data: {
 						tags: { deleteMany: {} },
@@ -210,7 +219,7 @@ export const PostRepository: RepositoryContract = {
 						views: { deleteMany: {} },
 					},
 				});
-				await tx.post.delete({
+				await tx.post_app_post.delete({
 					where: { id },
 				});
 			});
@@ -230,7 +239,7 @@ export const PostRepository: RepositoryContract = {
 		const createdImagePaths = getPostImagePaths(images);
 
 		try {
-			const post = await client.post.update({
+			const post = await client.post_app_post.update({
 				where: { id: postId },
 				data: {
 					images: {
@@ -251,13 +260,13 @@ export const PostRepository: RepositoryContract = {
 
 	deleteImage: async (imageId) => {
 		try {
-			const image = await client.postImage.findUnique({
+			const image = await client.post_app_postimage.findUnique({
 				where: { id: imageId },
 			});
 
 			if (!image) return "image not found";
 
-			await client.postImage.delete({
+			await client.post_app_postimage.delete({
 				where: { id: imageId },
 			});
 			deleteMediaFiles(getPostImagePaths([image]));
@@ -276,10 +285,10 @@ export const PostRepository: RepositoryContract = {
 		const createdImagePaths = getPostImagePaths(images);
 
 		try {
-			const existingImages = await client.postImage.findMany({
+			const existingImages = await client.post_app_postimage.findMany({
 				where: { post_id: postId },
 			});
-			const post = await client.post.update({
+			const post = await client.post_app_post.update({
 				where: { id: postId },
 				data: {
 					images: {
@@ -301,13 +310,13 @@ export const PostRepository: RepositoryContract = {
 	},
 	heartIncrease: async (postId: number, userEmail: string) => {
 		try {
-			const user = await client.user.findUnique({
+			const user = await client.user_app_user.findUnique({
 				where: { email: userEmail },
 			});
 
 			if (!user) return "user not found";
 
-			const existing = await client.postHeart.findFirst({
+			const existing = await client.post_app_postheart.findFirst({
 				where: {
 					user_id: user.id,
 					post_id: postId,
@@ -315,7 +324,7 @@ export const PostRepository: RepositoryContract = {
 			});
 
 			if (existing) {
-				await client.postHeart.delete({
+				await client.post_app_postheart.delete({
 					where: {
 						id: existing.id,
 					},
@@ -323,7 +332,7 @@ export const PostRepository: RepositoryContract = {
 
 				return "unliked";
 			} else {
-				await client.postHeart.create({
+				await client.post_app_postheart.create({
 					data: {
 						user_id: user.id,
 						post_id: postId,
@@ -341,13 +350,13 @@ export const PostRepository: RepositoryContract = {
 	},
 	thumbUpIncrease: async (postId: number, userEmail: string) => {
 		try {
-			const user = await client.user.findUnique({
+			const user = await client.user_app_user.findUnique({
 				where: { email: userEmail },
 			});
 
 			if (!user) return "user not found";
 
-			const existing = await client.postLike.findFirst({
+			const existing = await client.post_app_postlike.findFirst({
 				where: {
 					user_id: user.id,
 					post_id: postId,
@@ -355,7 +364,7 @@ export const PostRepository: RepositoryContract = {
 			});
 
 			if (existing) {
-				await client.postLike.delete({
+				await client.post_app_postlike.delete({
 					where: {
 						id: existing.id,
 					},
@@ -363,7 +372,7 @@ export const PostRepository: RepositoryContract = {
 
 				return "unliked";
 			} else {
-				await client.postLike.create({
+				await client.post_app_postlike.create({
 					data: {
 						user_id: user.id,
 						post_id: postId,
@@ -382,19 +391,19 @@ export const PostRepository: RepositoryContract = {
 
 	viewsIncrease: async (postId, userEmail) => {
 		try {
-			const user = await client.user.findUnique({
+			const user = await client.user_app_user.findUnique({
 				where: { email: userEmail },
 			});
 
 			if (!user) {
 				return "user is not found";
 			}
-			await client.postView.create({
-				data: {
-					post_id: postId,
-					user_id: user.id,
-				},
-			});
+			// Avoid duplicate view entries on PostgreSQL.
+			await client.$executeRaw`
+				INSERT INTO post_app_postview (post_id, user_id)
+				VALUES (${postId}, ${user.id})
+				ON CONFLICT (user_id, post_id) DO NOTHING
+			`;
 
 			return "success";
 		} catch (error) {

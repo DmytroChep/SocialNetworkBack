@@ -26,7 +26,7 @@ export const FriendshipService: ServiceContract = {
 		return await FriendshipRepository.delete(id);
 	},
 
-	createRequest: async (senderId, receiverId, status = "PENDING") => {
+	createRequest: async (senderId, receiverId, status = "pending") => {
 		if (isNaN(senderId) || isNaN(receiverId)) return "Invalid ID";
 		if (senderId === receiverId) return "You cannot be friends with yourself";
 		if (!isFriendshipStatus(status)) return "Invalid status";

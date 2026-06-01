@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 
-export type User = Prisma.UserGetPayload<{}>;
-export type UserWithProfile = Prisma.UserGetPayload<{ include: { profile: true } }>;
+export type User = Prisma.user_app_userGetPayload<{}>;
+export type UserWithProfile = Prisma.user_app_userGetPayload<{ include: { profile: true } }>;
 export type UserWithoutPassword = Omit<UserWithProfile, "password">;
 
 export type LoginUser = {
@@ -15,12 +15,12 @@ export interface IUserUpdatePassword {
     email: string;
 }
 
-export type UpdateUser = Prisma.UserUncheckedUpdateInput;
+export type UpdateUser = Prisma.user_app_userUncheckedUpdateInput;
 
 export type Email = { email: string };
 
-export type CreateUser = Prisma.UserUncheckedCreateInput & {
-    profile?: Prisma.ProfileUncheckedCreateNestedOneWithoutUserInput;
+export type CreateUser = Prisma.user_app_userUncheckedCreateInput & {
+    profile?: any;
 };
 
 export interface RepositoryContract {

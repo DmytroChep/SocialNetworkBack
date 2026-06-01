@@ -1,0 +1,48 @@
+model chat_app_chat {
+  id                  BigInt                @id @default(autoincrement())
+  name                String?               @db.VarChar(30)
+  is_group            Boolean
+  avatar              String?               @db.VarChar(100)
+  admin_id            BigInt?
+  admin               user_app_user?        @relation(fields: [admin_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_chat_admin_id_f1deddb9_fk_user_app_user_id")
+  users               chat_app_chat_users[]
+  messages            chat_app_message[]
+
+  @@index([admin_id], map: "chat_app_chat_admin_id_f1deddb9")
+}
+
+model chat_app_chat_users {
+  id            BigInt        @id @default(autoincrement())
+  chat_id       BigInt
+  user_id       BigInt
+  chat          chat_app_chat @relation(fields: [chat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_chat_users_chat_id_5bba5169_fk_chat_app_chat_id")
+  user          user_app_user @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_chat_users_user_id_7aff58dc_fk_user_app_user_id")
+
+  @@unique([chat_id, user_id], map: "chat_app_chat_users_chat_id_user_id_b05bfe90_uniq")
+  @@index([chat_id], map: "chat_app_chat_users_chat_id_5bba5169")
+  @@index([user_id], map: "chat_app_chat_users_user_id_7aff58dc")
+}
+
+model chat_app_messageimage {
+  id               BigInt           @id @default(autoincrement())
+  image            String           @db.VarChar(100)
+  message_id       BigInt
+  message          chat_app_message @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_messageimag_message_id_7967b5cb_fk_chat_app_")
+
+  @@index([message_id], map: "chat_app_messageimage_message_id_7967b5cb")
+}
+
+model chat_app_message {
+  id                       BigInt                     @id @default(autoincrement())
+  text                     String?
+  created_at               DateTime                   @db.Timestamptz(6)
+  chat_id                  BigInt
+  sender_id                BigInt?
+  chat                     chat_app_chat              @relation(fields: [chat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_message_chat_id_a7824698_fk_chat_app_chat_id")
+  sender                   user_app_user?             @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "chat_app_message_sender_id_03c5fae9_fk_user_app_user_id")
+  readers                  chat_app_message_readers[]
+  images                   chat_app_messageimage[]
+
+  @@index([chat_id], map: "chat_app_message_chat_id_a7824698")
+  @@index([sender_id], map: "chat_app_message_sender_id_03c5fae9")
+}

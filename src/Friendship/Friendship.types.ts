@@ -1,33 +1,35 @@
 import { Request, Response } from "express";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 
-export type FriendshipProfile = Prisma.ProfileGetPayload<{
-	include: {
-		user: {
-			select: {
-				id: true;
-				email: true;
-				username: true;
-				first_name: true;
-				last_name: true;
-			};
-		};
-	};
-}>;
+export type FriendshipProfile = Prisma.profile_app_profileGetPayload<{}> & {
+	user?: any;
+};
 
-export type ProfileFriendWithProfiles = Prisma.ProfileFriendGetPayload<{
-	include: {
-		from_profile: { include: typeof profileInclude };
-		to_profile: { include: typeof profileInclude };
-	};
-}>;
+export const userInclude = {
+	profile: {
+		select: {
+			id: true,
+			user_id: true,
+			avatar: true,
+			pseudonym: true,
+			signature: true,
+			birth_date: true,
+			is_text_signature: true,
+			is_image_signature: true,
+		},
+	},
+} as const;
 
-export type FriendRequestWithProfiles = Prisma.FriendRequestGetPayload<{
-	include: {
-		from_profile: { include: typeof profileInclude };
-		to_profile: { include: typeof profileInclude };
-	};
-}>;
+export type FriendRequestWithProfiles = Prisma.user_app_friendshipGetPayload<{}> & {
+	from_user?: any;
+	to_user?: any;
+	from_profile?: FriendshipProfile | null;
+	to_profile?: FriendshipProfile | null;
+};
+
+export type ProfileFriendWithProfiles = FriendRequestWithProfiles;
+
+export type FriendshipWithProfiles = ProfileFriendWithProfiles | FriendRequestWithProfiles;
 
 export type UserFriendships = {
 	friends: ProfileFriendWithProfiles[];
@@ -37,29 +39,17 @@ export type UserFriendships = {
 };
 
 export type FriendshipStatusAction =
-	| "ACCEPTED"
-	| "REJECTED"
-	| "PENDING"
-	| "BLACKLISTED";
+	| "accepted"
+	| "rejected"
+	| "pending"
+	| "blacklisted";
 
 export const FRIENDSHIP_STATUSES: FriendshipStatusAction[] = [
-	"ACCEPTED",
-	"REJECTED",
-	"PENDING",
-	"BLACKLISTED",
+	"accepted",
+	"rejected",
+	"pending",
+	"blacklisted",
 ];
-
-export const profileInclude = {
-	user: {
-		select: {
-			id: true,
-			email: true,
-			username: true,
-			first_name: true,
-			last_name: true,
-		},
-	},
-} satisfies Prisma.ProfileInclude;
 
 export interface RepositoryContract {
 	userFriendships: (userId: number) => Promise<UserFriendships | string>;

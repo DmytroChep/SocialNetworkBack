@@ -1,19 +1,19 @@
 import type { Request, Response } from "express";
-import type { Prisma } from "../generated/prisma";
+import type { Prisma } from "@prisma/client";
 
-export type Album = Prisma.AlbumGetPayload<{}>;
+export type Album = Prisma.profile_app_albumGetPayload<{}>;
 
-export type AlbumWithImages = Prisma.AlbumGetPayload<{
+export type AlbumWithImages = Prisma.profile_app_albumGetPayload<{
 	include: {
 		images: true;
 	};
 }>;
 
-export type CreateAlbum = Prisma.AlbumCreateInput;
+export type CreateAlbum = Prisma.profile_app_albumCreateInput;
 
-export type UpdateAlbum = Prisma.AlbumUpdateInput;
+export type UpdateAlbum = Prisma.profile_app_albumUpdateInput;
 
-export type CreateAlbumImage = Prisma.AlbumImageCreateWithoutAlbumInput;
+export type CreateAlbumImage = Prisma.profile_app_albumimageCreateWithoutAlbumInput;
 
 export type ErrorResponse = string;
 
@@ -41,7 +41,7 @@ export interface RepositoryContract {
 
 	delete: (
 		id: number,
-	) => Promise<ErrorResponse>;
+	) => Promise<any | ErrorResponse>;
 
 	addImages: (
 		albumId: number,
@@ -82,7 +82,7 @@ export interface ServiceContract {
 
 	delete: (
 		id: number,
-	) => Promise<ErrorResponse>;
+	) => Promise<any | ErrorResponse>;
 
 	addImages: (
 		albumId: number,

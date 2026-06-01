@@ -1,0 +1,43 @@
+model user_app_user {
+  id                                                                  BigInt                           @id @default(autoincrement())
+  password                                                            String                           @db.VarChar(128)
+  last_login                                                          DateTime?                        @db.Timestamptz(6)
+  is_superuser                                                        Boolean
+  first_name                                                          String                           @db.VarChar(150)
+  last_name                                                           String                           @db.VarChar(150)
+  is_staff                                                            Boolean
+  is_active                                                           Boolean
+  date_joined                                                         DateTime                         @db.Timestamptz(6)
+  username                                                            String?                          @unique(map: "user_app_user_username_e45e0961_uniq") @db.VarChar(150)
+  email                                                               String                           @unique @db.VarChar(254)
+  admin_chats                                                         chat_app_chat[]
+  chat_memberships                                                   chat_app_chat_users[]
+  sent_messages                                                      chat_app_message[]
+  read_messages                                                      chat_app_message_readers[]
+  admin_logs                                                         django_admin_log[]
+  posts                                                              post_app_post[]
+  post_hearts                                                        post_app_postheart[]
+  post_likes                                                         post_app_postlike[]
+  post_views                                                         post_app_postview[]
+  profile                                                            profile_app_profile?
+  friendships_sent                                                   user_app_friendship[]            @relation("friendship_from_user")
+  friendships_received                                               user_app_friendship[]            @relation("friendship_to_user")
+  groups                                                             user_app_user_groups[]
+  user_permissions                                                   user_app_user_user_permissions[]
+
+  @@index([email], map: "user_app_user_email_e59b5739_like")
+  @@index([username], map: "user_app_user_username_e45e0961_like")
+}
+
+model profile_app_profile {
+  id                 BigInt              @id @default(autoincrement())
+  birth_date         DateTime?           @db.Date
+  signature          String?             @db.VarChar(100)
+  avatar             String?             @db.VarChar(100)
+  pseudonym          String?             @db.VarChar(50)
+  is_text_signature  Boolean
+  is_image_signature Boolean
+  user_id            BigInt?             @unique
+  albums             profile_app_album[]
+  user               user_app_user?      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "profile_app_profile_user_id_296a7b55_fk_user_app_user_id")
+}

@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 
-export type Post = Prisma.PostGetPayload<{}>;
-export type PostWithRelations = Prisma.PostGetPayload<{
+export type Post = Prisma.post_app_postGetPayload<{}>;
+export type PostWithRelations = Prisma.post_app_postGetPayload<{
 	include: { 
 		images: true; 
 		links: true;
@@ -16,12 +16,12 @@ export type PostWithRelations = Prisma.PostGetPayload<{
 
 export interface PostPaginationParams {
 	limit?: number;
-	cursor?: number;
+	cursor?: number | bigint;
 }
 
 export interface PaginatedPostsResult {
 	items: any[];
-	nextCursor: number | null;
+	nextCursor: number | bigint | null;
 	hasMore: boolean;
 }
 

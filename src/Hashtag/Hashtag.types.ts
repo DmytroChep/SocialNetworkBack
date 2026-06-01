@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 
-export type Hashtag = Prisma.TagGetPayload<{}>;
-export type HashtagWithPosts = Prisma.TagGetPayload<{
+export type Hashtag = Prisma.post_app_tagGetPayload<{}>;
+export type HashtagWithPosts = Prisma.post_app_tagGetPayload<{
 	include: {
 		posts: {
 			include: {
@@ -11,8 +11,8 @@ export type HashtagWithPosts = Prisma.TagGetPayload<{
 		};
 	};
 }>;
-export type CreateHashtag = Prisma.TagUncheckedCreateInput;
-export type UpdateHashtag = Prisma.TagUncheckedUpdateInput;
+export type CreateHashtag = Prisma.post_app_tagUncheckedCreateInput;
+export type UpdateHashtag = Prisma.post_app_tagUncheckedUpdateInput;
 
 export interface RepositoryContract {
 	create: (hashtagData: CreateHashtag) => Promise<any | string>;

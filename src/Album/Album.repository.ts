@@ -1,5 +1,5 @@
 import { client } from "../config/client";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 import { deleteMediaFiles } from "../utils/media-files";
 import type { RepositoryContract } from "./Album.types";
 
@@ -46,7 +46,7 @@ export const AlbumRepository: RepositoryContract = {
         const createdImagePaths = getCreatedAlbumImagePaths(albumData);
 
         try {
-            const album = await client.album.create({
+            const album = await client.profile_app_album.create({
                 data: albumData,
                 include: albumInclude,
             });
@@ -62,7 +62,7 @@ export const AlbumRepository: RepositoryContract = {
 
     getById: async (id) => {
         try {
-            const album = await client.album.findUnique({
+            const album = await client.profile_app_album.findUnique({
                 where: { id },
                 include: albumInclude,
             });
@@ -74,7 +74,7 @@ export const AlbumRepository: RepositoryContract = {
 
     getByProfileId: async (profileId) => {
         try {
-            const albums = await client.album.findMany({
+            const albums = await client.profile_app_album.findMany({
                 where: { profile_id: profileId },
                 include: albumInclude,
             });
@@ -86,7 +86,7 @@ export const AlbumRepository: RepositoryContract = {
 
     getByUserId: async (userId) => {
         try {
-            const albums = await client.album.findMany({
+            const albums = await client.profile_app_album.findMany({
                 where: {
                     profile: {
                         user: { id: userId },
@@ -102,7 +102,7 @@ export const AlbumRepository: RepositoryContract = {
 
     update: async (id, albumData) => {
         try {
-            const album = await client.album.update({
+            const album = await client.profile_app_album.update({
                 where: { id },
                 data: albumData,
                 include: albumInclude,
@@ -118,7 +118,7 @@ export const AlbumRepository: RepositoryContract = {
 
     delete: async (id) => {
         try {
-            const album = await client.album.findUnique({
+            const album = await client.profile_app_album.findUnique({
                 where: { id },
                 include: { images: true },
             });
@@ -126,11 +126,11 @@ export const AlbumRepository: RepositoryContract = {
             if (!album) return "album not found";
 
             await client.$transaction(async (tx) => {
-                await tx.albumImage.deleteMany({ where: { album_id: id } });
-                await tx.album.delete({ where: { id } });
+                await tx.profile_app_albumimage.deleteMany({ where: { album_id: id } });
+                await tx.profile_app_album.delete({ where: { id } });
             });
             deleteMediaFiles(getAlbumImagePaths(album.images));
-            return "album deleted successfully";
+            return { success: true, message: "album deleted successfully" };
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
                 return "album not found";
@@ -143,7 +143,7 @@ export const AlbumRepository: RepositoryContract = {
         const createdImagePaths = getAlbumImagePaths(images);
 
         try {
-            const album = await client.album.update({
+            const album = await client.profile_app_album.update({
                 where: { id: albumId },
                 data: { images: { create: images } },
                 include: albumInclude,
@@ -160,13 +160,13 @@ export const AlbumRepository: RepositoryContract = {
 
     deleteImage: async (imageId) => {
         try {
-            const image = await client.albumImage.findUnique({
+            const image = await client.profile_app_albumimage.findUnique({
                 where: { id: imageId },
             });
 
             if (!image) return "image not found";
 
-            await client.albumImage.delete({ where: { id: imageId } });
+            await client.profile_app_albumimage.delete({ where: { id: imageId } });
             deleteMediaFiles(getAlbumImagePaths([image]));
             return "image deleted successfully";
         } catch (error) {
@@ -181,10 +181,10 @@ export const AlbumRepository: RepositoryContract = {
         const createdImagePaths = getAlbumImagePaths(images);
 
         try {
-            const existingImages = await client.albumImage.findMany({
+            const existingImages = await client.profile_app_albumimage.findMany({
                 where: { album_id: albumId },
             });
-            const album = await client.album.update({
+            const album = await client.profile_app_album.update({
                 where: { id: albumId },
                 data: {
                     images: {
