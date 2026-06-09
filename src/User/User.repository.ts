@@ -528,4 +528,14 @@ export const UserRepository: RepositoryContract = {
 
         return "user deleted successfully";
     },
+    updateUserStatus: async (userId: number, status: string) => {
+        return await client.user.update({
+            where: { id: userId },
+            data: { 
+                status: status,
+                last_login: status === 'offline' ? new Date() : null 
+            },
+        });
+    }
 };
+

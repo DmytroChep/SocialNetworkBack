@@ -21,3 +21,4 @@ userRouter.get("/user/isCodeExists", UserController.checkIsCodeExists);
 userRouter.post("/user/updatePassword", UserController.updatePassword);
 userRouter.post("/update-avatar", validateBase64, UserController.updateAvatar);
 userRouter.get("/user-by-id", UserController.userById);
+userRouter.patch("/user/:id/status", authMiddleware, UserController.updateUserStatus);

@@ -24,6 +24,7 @@ export type CreateUser = Prisma.UserUncheckedCreateInput & {
 };
 
 export interface RepositoryContract {
+    updateUserStatus(userId: number, status: string): unknown;
     registration: (UserData: CreateUser) => Promise<User | string>;
     login: (UserData: LoginUser) => Promise<User | string | null>;
     me: (UserEmail: string) => Promise<any | string>;
@@ -59,6 +60,7 @@ export interface ServiceContract {
     userById: (id: string) => Promise<any | string>;
     allUsers: () => Promise<UserWithoutPassword[]>;
     deleteUser: (id: string) => Promise<string>;
+    updateUserStatus: (id: string, status: string) => Promise<any>;
 }
 
 export interface ControllerContract {
@@ -101,4 +103,12 @@ export interface ControllerContract {
     ) => Promise<void>;
     allUsers: (req: Request, res: Response) => Promise<void>;
     deleteUser: (req: Request<{ id: string }>, res: Response<string>) => Promise<void>;
+    updateUserStatus: (req: Request, res: Response) => Promise<void>;
+}
+
+export type UserStatus = 'online' | 'offline';
+
+export interface UpdateUserStatus {
+    userId: number;
+    status: UserStatus;
 }

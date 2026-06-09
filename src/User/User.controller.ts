@@ -106,4 +106,23 @@ export const UserController: ControllerContract = {
         const response = await UserService.deleteUser(req.params.id);
         res.status(response === "user not found" ? 404 : 200).json(response);
     },
+    
+    updateUserStatus: async (req, res) => {
+        const id = typeof req.params.id === 'string' ? req.params.id : "";
+        const status = typeof req.body.status === 'string' ? req.body.status : "";
+
+        if (!id || !status) {
+            res.status(400).json("invalid input data");
+            return;
+        }
+
+        const response = await UserService.updateUserStatus(id, status);
+
+        if (response === "invalid user id" || response === "invalid status") {
+            res.status(400).json(response);
+            return;
+        }
+
+        res.status(200).json(response);
+    },
 };

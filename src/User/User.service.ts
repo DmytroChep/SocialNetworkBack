@@ -101,4 +101,18 @@ export const UserService: ServiceContract = {
 
         return UserRepository.deleteUser(userId);
     },
+
+    updateUserStatus: async (id: string, status: string) => {
+        const userId = parseId(id);
+        
+        if (!userId) {
+            return "invalid user id";
+        }
+
+        if (status !== 'online' && status !== 'offline') {
+            return "invalid status";
+        }
+
+        return UserRepository.updateUserStatus(userId, status);
+    },
 };

@@ -8,7 +8,7 @@ import { PostRouter } from "./Post/Post.router";
 import { friendshipRouter } from "./Friendship/Friendship.router";
 
 const PORT = 8000;
-const HOST = "192.168.0.193"
+const HOST = "192.168.0.133"
 const app = express();
 
 
