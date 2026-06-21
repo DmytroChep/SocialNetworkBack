@@ -6,6 +6,8 @@ const router = Router();
 const controller = new GroupChatController();
 
 router.post("/create", authMiddleware, controller.createGroup);
+router.patch("/:chatId", authMiddleware, controller.updateGroup);
 router.delete("/remove-member", authMiddleware, controller.removeMember);
+router.delete("/:chatId", authMiddleware, controller.deleteGroup);
 
 export default router;

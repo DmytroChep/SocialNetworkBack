@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
+  output = "../src/generated/client"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 
 model profile_app_album {
   id                     BigInt                   @id @default(autoincrement())

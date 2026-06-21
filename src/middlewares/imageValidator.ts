@@ -3,7 +3,7 @@ import { saveDataUriImage } from "../utils/media-files";
 
 const IMAGE_DATA_URI_REGEX = /^data:image\/(png|jpe?g|webp);base64,/i;
 
-export const validateBase64 = (
+export const validateBase64 = async (
     req: Request,
     res: Response,
     next: NextFunction,
@@ -19,16 +19,15 @@ export const validateBase64 = (
         return res.status(400).json({ error: "invalid base64 format" });
     }
 
-    req.body.imagePath = saveDataUriImage(image, "avatars", `avatar_${authorId}`);
-    req.body.userId = userId || user_id;
+    req.body.imagePath = await saveDataUriImage(image, "media/profile_app/avatars", `avatar_${authorId}`);    req.body.userId = userId || user_id;
     next();
 };
 
-export const validateAlbumImages = (
+export const validateAlbumImages = async (
     req: Request,
     res: Response,
     next: NextFunction,
-): void => {
+): Promise<void> => {
     const { images, profileId, userId, user_id } = req.body;
 
     if (!images) {
@@ -44,15 +43,12 @@ export const validateAlbumImages = (
     const authorId = profileId || userId || user_id || Date.now();
 
     try {
-        req.body.images = images.map((item: any, index: number) => {
-            if (!item?.image || !IMAGE_DATA_URI_REGEX.test(item.image)) {
-                throw new Error("invalid image payload");
-            }
-
-            return {
-                image: saveDataUriImage(item.image, "albums", `album_${authorId}`, index),
-            };
-        });
+        req.body.images = await Promise.all(
+            images.map((item: any, index: number) =>
+                saveDataUriImage(item.image, "media/profile_app/albums", `album_${authorId}`, index)
+                .then((url) => ({ image: url }))
+            )
+        );  
         next();
     } catch {
         res.status(400).json({ error: "invalid image payload" });

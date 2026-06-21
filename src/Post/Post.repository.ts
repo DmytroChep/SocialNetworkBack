@@ -1,6 +1,6 @@
 import { client } from "../config/client";
 import { Prisma } from "@prisma/client";
-import { deleteMediaFiles, getSignatureFileName } from "../utils/media-files";
+import { DEFAULT_AVATAR_PATH, deleteMediaFiles, getMediaUrl, getSignatureFileName } from "../utils/media-files";
 import type { RepositoryContract } from "./Post.types";
 
 const postInclude = {
@@ -44,32 +44,52 @@ const getRemovedPostImagePaths = (
 		(image) => image && !nextPaths.has(image),
 	);
 };
-
 const serializeUser = (user: any) => {
-	const signatureFileName = getSignatureFileName(user.profile?.signature);
-	const signature = signatureFileName ?? (user.profile?.signature?.startsWith("data:") ? null : user.profile?.signature ?? null);
-	const avatar = user.profile?.avatar
-		? {
-				id: user.profile.id,
-				image: user.profile.avatar,
-				userId: user.id,
-			}
-		: null;
+    const profile = user.profile ?? null;
+    const avatarPathRaw = profile?.avatar || DEFAULT_AVATAR_PATH;
+    const avatarPath = (() => {
+        if (!avatarPathRaw) return avatarPathRaw;
+        if (avatarPathRaw.startsWith("http")) return avatarPathRaw;
+        if (avatarPathRaw.includes("/")) return avatarPathRaw;
+        const base = avatarPathRaw.replace(/\.[^/.]+$/, "");
+        return `profile_app/avatars/${base}`;
+    })();
 
-	return {
-		...user,
-		profile: user.profile ? { ...user.profile, signature } : user.profile,
-		authorName: user.first_name || user.profile?.pseudonym || null,
-		userName: user.username,
-		status: user.profile?.pseudonym ?? null,
-		birthDate: user.profile?.birth_date ?? null,
-		sign: signature,
-		signatureImage: signature,
-		currentAvatarId: avatar?.id ?? null,
-		currentAvatar: avatar,
-	};
+    const signatureRaw = profile?.signature ?? null;
+    const signatureFileName = getSignatureFileName(signatureRaw);
+    const signatureCandidate = signatureFileName ?? (signatureRaw?.startsWith("data:") ? null : signatureRaw ?? null);
+    const signature = (() => {
+        if (!signatureCandidate) return signatureCandidate;
+        if (signatureCandidate.startsWith("http")) return signatureCandidate;
+        if (signatureCandidate.includes("/")) return signatureCandidate;
+        const base = signatureCandidate.replace(/\.[^/.]+$/, "");
+        return `profile_app/signatures/${base}`;
+    })();
+
+    const avatar = {
+        id: profile?.id ?? user.id,
+        image: getMediaUrl(avatarPath) ?? avatarPath,
+        userId: user.id,
+    };
+
+    return {
+        ...user,
+        profile: profile ? { 
+            ...profile, 
+            avatar: getMediaUrl(avatarPath) ?? avatarPath, 
+            signature: getMediaUrl(signature) ?? signature 
+        } : profile,
+        authorName: user.first_name || profile?.pseudonym || null,
+        userName: user.username,
+        status: profile?.pseudonym ?? null,
+        birthDate: profile?.birth_date ?? null,
+        sign: getMediaUrl(signature) ?? signature,
+        signatureImage: getMediaUrl(signature) ?? signature,
+        currentAvatarId: avatar.id,
+        currentAvatar: avatar,
+        avatars: [avatar],
+    };
 };
-
 const serializePost = (post: any) => ({
 	...post,
 	description: post.content ?? null,
@@ -82,7 +102,9 @@ const serializePost = (post: any) => ({
 	images: Array.isArray(post.images)
 		? post.images.map((image: any) => ({
 				...image,
-				url: image.original_image,
+				original_image: getMediaUrl(image.original_image) ?? image.original_image,
+				compressed_image: getMediaUrl(image.compressed_image) ?? image.compressed_image,
+				url: getMediaUrl(image.original_image) ?? image.original_image,
 				postId: image.post_id,
 			}))
 		: [],
@@ -139,7 +161,7 @@ export const PostRepository: RepositoryContract = {
 		}
 	},
 
-	getAll: async ({ limit = 5, cursor } = {}) => {
+	getAll: async ({ limit = 3, cursor } = {}) => {
 		try {
 			const safeLimit = Math.min(Math.max(limit, 1), 20);
 			const posts = await client.post_app_post.findMany({
@@ -308,6 +330,7 @@ export const PostRepository: RepositoryContract = {
 			throw error;
 		}
 	},
+
 	heartIncrease: async (postId: number, userEmail: string) => {
 		try {
 			const user = await client.user_app_user.findUnique({
@@ -348,6 +371,7 @@ export const PostRepository: RepositoryContract = {
 			throw error;
 		}
 	},
+	
 	thumbUpIncrease: async (postId: number, userEmail: string) => {
 		try {
 			const user = await client.user_app_user.findUnique({
@@ -398,7 +422,6 @@ export const PostRepository: RepositoryContract = {
 			if (!user) {
 				return "user is not found";
 			}
-			// Avoid duplicate view entries on PostgreSQL.
 			await client.$executeRaw`
 				INSERT INTO post_app_postview (post_id, user_id)
 				VALUES (${postId}, ${user.id})

@@ -50,7 +50,11 @@ export interface ChatRepositoryContract {
 	getChatParticipants: (chatId: number | bigint) => Promise<Array<{ user_id: number | bigint }>>;
 	createPersonalChat: (userId: number | bigint, participantId: number | bigint) => Promise<any>;
 	isUserChatParticipant: (chatId: number | bigint, userId: number | bigint) => Promise<boolean>;
-	getMessages: (chatId: number | bigint, pagination: PaginationParams) => Promise<PaginatedResult<any>>;
+	getMessages: (
+		chatId: number | bigint,
+		pagination: PaginationParams,
+		userId?: number | bigint
+) => Promise<PaginatedResult<any>>;
 	createMessage: (chatId: number | bigint, userId: number | bigint, text: string, images?: string[]) => Promise<any>;
 	markMessagesAsRead: (chatId: number | bigint, userId: number | bigint) => Promise<number>;
 }

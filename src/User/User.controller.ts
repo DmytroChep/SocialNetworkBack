@@ -38,7 +38,8 @@ export const UserController: ControllerContract = {
     },
 
     sendCodeVerify: async (req, res) => {
-        const gmail = req.query.gmail;
+        const gmail = req.query.gmail; 
+        console.log("sendCodeVerify called, gmail:", gmail); 
         if (!gmail || typeof gmail !== "string" || gmail.trim() === "") {
             res.status(400).json("not writed email");
             return;
@@ -105,5 +106,24 @@ export const UserController: ControllerContract = {
     deleteUser: async (req, res) => {
         const response = await UserService.deleteUser(req.params.id);
         res.status(response === "user not found" ? 404 : 200).json(response);
+    },
+
+    updateUserStatus: async (req, res) => {
+        const id = typeof req.params.id === 'string' ? req.params.id : "";
+        const status = typeof req.body.status === 'string' ? req.body.status : "";
+
+        if (!id || !status) {
+            res.status(400).json("invalid input data");
+            return;
+        }
+
+        const response = await UserService.updateUserStatus(id, status);
+
+        if (response === "invalid user id" || response === "invalid status") {
+            res.status(400).json(response);
+            return;
+        }
+
+        res.status(200).json(response);
     },
 };

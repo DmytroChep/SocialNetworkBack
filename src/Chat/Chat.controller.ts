@@ -94,9 +94,9 @@ export const ChatController: ChatControllerContract = {
 
 			const cursorId = parseIdToBigInt(req.query.cursorId);
 			const result = await ChatService.getMessages(chatId, {
-				limit: limitFromQuery(req.query.limit, 30),
+				limit: limitFromQuery(req.query.limit, 10),
 				...(cursorId ? { cursorId } : {}),
-			});
+			}, user.id);
 
 			res.status(200).json({
 				messages: result.items,

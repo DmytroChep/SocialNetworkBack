@@ -3,6 +3,7 @@ import { ENV } from "../config/env";
 import { sendEmail } from "../config/email";
 import { UserRepository } from "./User.repository";
 import type { ServiceContract } from "./User.types";
+import { verificationCodes } from "../config/verificationCodes";
 
 export const parseId = (id?: string): number | null => {
     if (!id) return null;
@@ -19,9 +20,7 @@ export const parseId = (id?: string): number | null => {
 export const UserService: ServiceContract = {
     registration: async (userData) => {
         const user = await UserRepository.registration(userData);
-        if (typeof user === "string") {
-            return user;
-        }
+        if (typeof user === "string") return user;
         return jwt.sign({ email: user.email }, ENV.SECRET_KEY, { expiresIn: "7d" });
     },
 
@@ -54,26 +53,39 @@ export const UserService: ServiceContract = {
         return UserRepository.updateUser(userData, userId);
     },
 
-    sendCodeVerify: async (userGmail) => {
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        const result = await UserRepository.sendCodeVerify(userGmail, code);
+    // в UserService.sendCodeVerify замість виклику репозиторію
+sendCodeVerify: async (userGmail) => {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    
+    verificationCodes.set(userGmail, {
+        code,
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 хвилин
+    });
+    
+    await sendEmail(
+        "Email verification",
+        `<p>Your verification code: <b>${code}</b></p>`,
+        userGmail,
+    );
+    
+    return "status success";
+},
 
-        if (result !== "status success") {
-            return result;
-        }
-
-        await sendEmail(
-            "Email verification",
-            `<p>Your verification code: <b>${code}</b></p>`,
-            userGmail,
-        );
-
-        return result;
-    },
-
-    checkIsCodeExists: async (email, code) => {
-        return UserRepository.checkIsCodeExists(email, code);
-    },
+checkIsCodeExists: async (email, code) => {
+    if (!email) return false;
+    
+    const entry = verificationCodes.get(email);
+    if (!entry) return false;
+    if (entry.expiresAt < Date.now()) {
+        verificationCodes.delete(email);
+        return false;
+    }
+    
+    const isValid = entry.code === code;
+    if (isValid) verificationCodes.delete(email);
+    
+    return isValid;
+},
 
     updatePassword: async (userData) => {
         return UserRepository.updatePassword(userData);
@@ -100,5 +112,19 @@ export const UserService: ServiceContract = {
         if (!userId) return "invalid user id";
 
         return UserRepository.deleteUser(userId);
+    },
+
+    updateUserStatus: async (id: string, status: string) => {
+        const userId = parseId(id);
+        
+        if (!userId) {
+            return "invalid user id";
+        }
+
+        if (status !== 'online' && status !== 'offline') {
+            return "invalid status";
+        }
+
+        return UserRepository.updateUserStatus(userId, status);
     },
 };

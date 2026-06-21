@@ -5,6 +5,7 @@ import {
     deleteMediaFile,
     deleteMediaFiles,
     deleteSignatureFile,
+    getMediaUrl,
     getSignatureFileName,
     isDataUriImage,
     saveSignatureImage,
@@ -65,63 +66,83 @@ const serializeAlbum = (album: any) => ({
 
 const serializeUser = (user: any) => {
     const profile = user.profile ?? null;
-    const avatarPath = profile?.avatar || DEFAULT_AVATAR_PATH;
-    const signatureFileName = getSignatureFileName(profile?.signature);
-    const signature = signatureFileName ?? (profile?.signature?.startsWith("data:") ? null : profile?.signature ?? null);
+    const avatarPathRaw = profile?.avatar || DEFAULT_AVATAR_PATH;
+    const avatarPath = (() => {
+        if (!avatarPathRaw) return avatarPathRaw;
+        if (avatarPathRaw.startsWith("http")) return avatarPathRaw;
+        if (avatarPathRaw.includes("/")) return avatarPathRaw;
+        const base = avatarPathRaw.replace(/\.[^/.]+$/, "");
+        return `profile_app/avatars/${base}`;
+    })();
+
+    const signatureRaw = profile?.signature ?? null;
+    const signatureFileName = getSignatureFileName(signatureRaw);
+    const signatureCandidate = signatureFileName ?? (signatureRaw?.startsWith("data:") ? null : signatureRaw ?? null);
+    const signature = (() => {
+        if (!signatureCandidate) return signatureCandidate;
+        if (signatureCandidate.startsWith("http")) return signatureCandidate;
+        if (signatureCandidate.includes("/")) return signatureCandidate;
+        const base = signatureCandidate.replace(/\.[^/.]+$/, "");
+        return `profile_app/signatures/${base}`;
+    })();
+
     const avatar = {
         id: profile?.id ?? user.id,
-        image: avatarPath,
+        image: getMediaUrl(avatarPath) ?? avatarPath,
         userId: user.id,
     };
 
     return {
         ...user,
-        profile: profile ? { ...profile, avatar: avatarPath, signature } : profile,
+        profile: profile ? { 
+            ...profile, 
+            avatar: getMediaUrl(avatarPath) ?? avatarPath, 
+            signature: getMediaUrl(signature) ?? signature 
+        } : profile,
         authorName: user.first_name || profile?.pseudonym || null,
         userName: user.username,
         status: profile?.pseudonym ?? null,
         birthDate: profile?.birth_date ?? null,
-        sign: signature,
-        signatureImage: signature,
+        sign: getMediaUrl(signature) ?? signature,
+        signatureImage: getMediaUrl(signature) ?? signature,
         currentAvatarId: avatar.id,
         currentAvatar: avatar,
         avatars: [avatar],
-        albums: Array.isArray(profile?.albums)
-            ? profile.albums.map(serializeAlbum)
-            : [],
     };
 };
 
-const toUserCreateData = (userData: any) => {
-    const username = userData.username ?? userData.userName ?? userData.email;
-    const firstName = userData.first_name ?? userData.authorName ?? "";
-    const lastName = userData.last_name ?? "";
-    const signature = signatureField(userData);
+const toUserCreateData = async (userData: any) => {
+  const username = userData.username ?? userData.userName ?? userData.email;
+  const firstName = userData.first_name ?? userData.authorName ?? "";
+  const lastName = userData.last_name ?? "";
+  const signature = signatureField(userData);
 
-    return {
-        email: userData.email,
-        password: userData.password,
-        username,
-        first_name: firstName,
-        last_name: lastName,
-        is_active: userData.is_active ?? true,
-        is_staff: userData.is_staff ?? false,
-        is_superuser: userData.is_superuser ?? false,
-        date_joined: new Date(),
-        profile: {
-            create: {
-                birth_date: userData.birth_date ?? userData.birthDate ?? null,
-                signature: signature !== undefined ? saveSignatureImage(signature, `signature_${username}`) : null,
-                pseudonym: userData.pseudonym ?? userData.status ?? null,
-                avatar:
-                    userData.avatar ??
-                    userData.currentAvatar?.image ??
-                    DEFAULT_AVATAR_PATH,
-                is_text_signature: false,
-                is_image_signature: false,
-            },
-        },
-    };
+  return {
+    email: userData.email,
+    password: userData.password,
+    username,
+    first_name: firstName,
+    last_name: lastName,
+    is_active: userData.is_active ?? true,
+    is_staff: userData.is_staff ?? false,
+    is_superuser: userData.is_superuser ?? false,
+    date_joined: new Date(),
+    profile: {
+      create: {
+        birth_date: userData.birth_date ?? userData.birthDate ?? null,
+        signature: signature !== undefined
+          ? await saveSignatureImage(signature, `signature_${username}`)  // ✅ await
+          : null,
+        pseudonym: userData.pseudonym ?? userData.status ?? null,
+        avatar:
+          userData.avatar ??
+          userData.currentAvatar?.image ??
+          DEFAULT_AVATAR_PATH,
+        is_text_signature: false,
+        is_image_signature: false,
+      },
+    },
+  };
 };
 
 const toUserUpdateData = (userData: any, normalizedSignature?: string | null) => {
@@ -182,7 +203,7 @@ const toUserUpdateData = (userData: any, normalizedSignature?: string | null) =>
 
 export const UserRepository: RepositoryContract = {
     registration: async (userData) => {
-        const createData = toUserCreateData(userData);
+        const createData = await toUserCreateData(userData);
         const existing = await client.user_app_user.findFirst({
             where: {
                 OR: [
@@ -198,12 +219,21 @@ export const UserRepository: RepositoryContract = {
 
         const password = await hash(createData.password, 10);
 
-        return client.user_app_user.create({
+        const created = await client.user_app_user.create({
             data: {
                 ...createData,
                 password,
             },
+            include: {
+                profile: {
+                    include: {
+                        albums: { include: { images: true } },
+                    },
+                },
+            },
         });
+
+        return serializeUser(created);
     },
 
     login: async (UserData) => {
@@ -250,7 +280,7 @@ export const UserRepository: RepositoryContract = {
         const userId = Number(id);
         const incomingSignature = signatureField(userData);
         const normalizedSignature = incomingSignature !== undefined
-            ? saveSignatureImage(incomingSignature, `signature_${userId}`)
+            ? await saveSignatureImage(incomingSignature, `signature_${userId}`)
             : undefined;
         const createdSignature = isDataUriImage(incomingSignature) ? normalizedSignature : null;
         const data = toUserUpdateData(userData, normalizedSignature);
@@ -419,7 +449,7 @@ export const UserRepository: RepositoryContract = {
 
             return {
                 id: profile.id,
-                image: profile.avatar || DEFAULT_AVATAR_PATH,
+                image: (getMediaUrl(profile.avatar) ?? profile.avatar) || DEFAULT_AVATAR_PATH,
                 userId: id,
             };
         } catch (error) {
@@ -515,7 +545,6 @@ export const UserRepository: RepositoryContract = {
         ];
 
         await client.$transaction(async (tx) => {
-            // remove any friendship requests / friendships for this user
             await tx.$executeRaw`
                 DELETE FROM user_app_friendship
                 WHERE from_user_id = ${id} OR to_user_id = ${id}
@@ -571,5 +600,19 @@ export const UserRepository: RepositoryContract = {
         deleteSignatureFile(user.profile?.signature);
 
         return "user deleted successfully";
+    },
+
+    updateUserStatus: async (userId: number, status: string) => {
+        const db = client as any;
+        const model = db.user || db.user_app_user; 
+
+        return await model.update({
+            where: { id: userId },
+            data: {
+
+                status: status, 
+                last_login: status === 'offline' ? new Date() : null
+            },
+        });
     },
 };

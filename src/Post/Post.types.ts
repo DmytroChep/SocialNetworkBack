@@ -19,6 +19,11 @@ export interface PostPaginationParams {
 	cursor?: number | bigint;
 }
 
+export interface CloudinaryImageInput {
+    url: string;
+    publicId: string; 
+}
+
 export interface PaginatedPostsResult {
 	items: any[];
 	nextCursor: number | bigint | null;

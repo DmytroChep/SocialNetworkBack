@@ -2,13 +2,15 @@ import { createTransport } from "nodemailer";
 import { ENV } from "./env";
 
 const transporter = createTransport({
-	service: "gmail",
-	host: "smtp.gmail.com",
-	auth: {
-		user: ENV.EMAILADRESS,
-		pass: ENV.EMAILPASSWORD,
-	},
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+        user: ENV.EMAILADRESS,
+        pass: ENV.EMAILPASSWORD,
+    },
 });
+
 
 export async function sendEmail(
 	subject: string,
@@ -28,11 +30,5 @@ export async function sendEmail(
 		return error;
 	}
 }
-
-
-
-
-
-
 
 

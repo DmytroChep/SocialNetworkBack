@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../generated/prisma";
 
-export type User = Prisma.user_app_userGetPayload<{}>;
-export type UserWithProfile = Prisma.user_app_userGetPayload<{ include: { profile: true } }>;
+export type User = Prisma.UserGetPayload<{}>;
+export type UserWithProfile = Prisma.UserGetPayload<{ include: { profile: true } }>;
 export type UserWithoutPassword = Omit<UserWithProfile, "password">;
 
 export type LoginUser = {
@@ -15,15 +15,16 @@ export interface IUserUpdatePassword {
     email: string;
 }
 
-export type UpdateUser = Prisma.user_app_userUncheckedUpdateInput;
+export type UpdateUser = Prisma.UserUncheckedUpdateInput;
 
 export type Email = { email: string };
 
-export type CreateUser = Prisma.user_app_userUncheckedCreateInput & {
-    profile?: any;
+export type CreateUser = Prisma.UserUncheckedCreateInput & {
+    profile?: Prisma.ProfileUncheckedCreateNestedOneWithoutUserInput;
 };
 
 export interface RepositoryContract {
+    updateUserStatus(userId: number, status: string): unknown;
     registration: (UserData: CreateUser) => Promise<User | string>;
     login: (UserData: LoginUser) => Promise<User | string | null>;
     me: (UserEmail: string) => Promise<any | string>;
@@ -59,6 +60,7 @@ export interface ServiceContract {
     userById: (id: string) => Promise<any | string>;
     allUsers: () => Promise<UserWithoutPassword[]>;
     deleteUser: (id: string) => Promise<string>;
+    updateUserStatus: (id: string, status: string) => Promise<any>;
 }
 
 export interface ControllerContract {
@@ -101,4 +103,12 @@ export interface ControllerContract {
     ) => Promise<void>;
     allUsers: (req: Request, res: Response) => Promise<void>;
     deleteUser: (req: Request<{ id: string }>, res: Response<string>) => Promise<void>;
+    updateUserStatus: (req: Request, res: Response) => Promise<void>;
+}
+
+export type UserStatus = 'online' | 'offline';
+
+export interface UpdateUserStatus {
+    userId: number;
+    status: UserStatus;
 }

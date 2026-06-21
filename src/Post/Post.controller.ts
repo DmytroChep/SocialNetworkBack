@@ -44,24 +44,26 @@ const isImageArray = (
 				typeof (i as any).image === "string")
 	);
 
-const normalizeImages = (
+const normalizeImages = async (
 	images: Array<{ original_image?: string; compressed_image?: string | null; url?: string; image?: string }>,
 	filePrefix: string,
 ) =>
-	images.map((image, index) => {
-		const originalImage = image.original_image ?? image.url ?? image.image ?? "";
-		const compressedImage = image.compressed_image ?? null;
+	Promise.all(
+		images.map(async (image, index) => {
+			const originalImage = image.original_image ?? image.url ?? image.image ?? "";
+			const compressedImage = image.compressed_image ?? null;
 
-		const originalSaved = saveDataUriImage(originalImage, "posts", filePrefix, index);
-		const compressedSaved = compressedImage
-			? saveDataUriImage(compressedImage, "posts", `${filePrefix}_compressed`, index)
-			: originalSaved;
+			const originalSaved = await saveDataUriImage(originalImage, "media/post_app/original_images", filePrefix, index);
+			const compressedSaved = compressedImage
+				? await saveDataUriImage(compressedImage, "media/post_app/compressed_images", `${filePrefix}_compressed`, index)
+				: originalSaved;
 
-		return {
-			original_image: originalSaved,
-			compressed_image: compressedSaved,
-		};
-	});
+			return {
+				original_image: originalSaved,
+				compressed_image: compressedSaved,
+			};
+		})
+	);
 
 const bad = (res: any, msg: string) => res.status(400).json(msg);
 const unauthorized = (res: any) => res.status(401).json("invalid token");
@@ -143,7 +145,7 @@ export const PostController: ControllerContract = {
 			data.links = { create: postLinks.map(url => ({ url })) };
 
 		if (isImageArray(images))
-			data.images = { create: normalizeImages(images, `post_${parsedAuthorId}`) };
+			data.images = { create: await normalizeImages(images, `post_${parsedAuthorId}`) };
 
 		const result = await PostService.create(data);
 		if (typeof result === "string") return bad(res, result);
@@ -280,7 +282,7 @@ export const PostController: ControllerContract = {
 		if (!id) return bad(res, "invalid post id");
 		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		const result = await PostService.addImages(id, normalizeImages(req.body.images, `post_${id}`));
+		const result = await PostService.addImages(id, await normalizeImages(req.body.images, `post_${id}`));
 		if (typeof result === "string") return bad(res, result);
 
 		res.json(result);
@@ -291,7 +293,7 @@ export const PostController: ControllerContract = {
 		if (!id) return bad(res, "invalid post id");
 		if (!isImageArray(req.body.images)) return bad(res, "invalid images");
 
-		const result = await PostService.replaceImages(id, normalizeImages(req.body.images, `post_${id}`));
+		const result = await PostService.replaceImages(id, await normalizeImages(req.body.images, `post_${id}`));
 		if (typeof result === "string") return bad(res, result);
 
 		res.json(result);
