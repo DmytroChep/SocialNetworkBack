@@ -12,7 +12,7 @@ const PORT = 8000;
 // 10.22.202.103
 // 192.168.0.193
 // 192.168.0.148
-const HOST = "0.0.0.0";
+const HOST = "192.168.0.148";
 const app = express();
 const httpServer = createServer(app);
 

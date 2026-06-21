@@ -102,6 +102,10 @@ export const SocketManager: SocketManagerContract = {
             socket.on("chat:leave", leaveChat);
             socket.on("leaveChat", leaveChat);
 
+            socket.on("users:get_online", (ack) => {
+                ack?.(ok(Array.from(onlineUsers)));
+            });
+
             socket.on("messages:read", async (data, ack) => {
                 try {
                     const chatId = normalizeChatId(data?.chatId);
@@ -230,66 +234,88 @@ export const SocketManager: SocketManagerContract = {
         // Django bridge — отдельный неймспект без auth middleware
         const djangoBridge = this.socketServer.of("/django-bridge");
 
+        this.socketServer.on("users:request_online", (socke:AuthenticatedSocket) => {
+            socke.emit("users:response_online", Array.from(onlineUsers));
+        })
+
+
+
         djangoBridge.on("connection", (socket) => {
-            console.log("✅ Django підключився:", socket.id);
+    console.log("✅ Django підключився:", socket.id);
 
-            socket.emit('server_event', {type: 'users:request_online'});
+    // Сразу шлём Django наш полный список — без ожидания запроса
+    socket.emit("server_event", {
+        type: "sync",
+        onlineUsers: Array.from(onlineUsers),
+    });
 
+    socket.on("django_event", async (data: { type: string; chatId?: string; message?: unknown; userId?: number | string; onlineUsers?: Array<number | string> }) => {
+        console.log("📨 Подія від Django:", data);
 
-            socket.on("django_event", async (data: { type: string; chatId?: string; message?: unknown; userId?: number | string }) => {
-                console.log("📨 Подія від Django:", data);
-
-                if (data.type === "users:request_online") {
-                    console.log("📤 Відповідаємо Django списком онлайн користувачів:", Array.from(onlineUsers));
-                    for (const uid of onlineUsers) {
-                        socket.emit("server_event", {
-                            type: "user:online",
-                            id: uid,
-                        });
-                    }
-                    return;
-                }
-
-                // --- ОБРАБОТКА ОНЛАЙНА ИЗ ДЖАНГО ---
-                if (data.type === "user:online" && data.userId) {
-                    const uid = Number(data.userId);
+        // --- НОВЫЙ ЕДИНЫЙ СНЭПШОТ ОТ DJANGO ---
+        if (data.type === "sync") {
+            const ids: Array<number | string> = data.onlineUsers ?? [];
+            console.log("📥 Отримали від Django повний список онлайн:", ids);
+            for (const raw of ids) {
+                const uid = Number(raw);
+                if (!onlineUsers.has(uid)) {
                     onlineUsers.add(uid);
                     io?.emit("user:online", { id: uid });
-                    return; // Выходим, так как код ниже предназначен только для сообщений
                 }
+            }
+            return;
+        }
 
-                if (data.type === "user:offline" && data.userId) {
-                    const uid = Number(data.userId);
-                    onlineUsers.delete(uid);
-                    io?.emit("user:offline", { id: uid });
-                    return;
-                }
+        if (data.type === "users:request_online") {
+            console.log("📤 Відповідаємо Django списком онлайн користувачів:", Array.from(onlineUsers));
+            for (const uid of onlineUsers) {
+                socket.emit("server_event", {
+                    type: "user:online",
+                    id: uid,
+                });
+            }
+            return;
+        }
 
-                if (data.type === "message:new" && data.chatId) {
-                    // 1. Отправляем тем, у кого чат открыт
-                    this.socketServer?.to(`chat-${data.chatId}`).emit("message:new", {
-                        chatId: data.chatId,
-                        message: data.message,
-                    });
+        // --- ОБРАБОТКА ОНЛАЙНА ИЗ ДЖАНГО ---
+        if (data.type === "user:online" && data.userId) {
+            const uid = Number(data.userId);
+            onlineUsers.add(uid);
+            io?.emit("user:online", { id: uid });
+            return; // Выходим, так как код ниже предназначен только для сообщений
+        }
 
-                    // 2. Now call emitChatUpdated in background
-                    try {
-                        const numericChatId = parseIdToBigInt(data.chatId);
-                        await emitChatUpdated(numericChatId);
-                    } catch (error) {
-                        console.error("❌ Ошибка обновления счетчиков для неактивных пользователей:", error);
-                    }
-                }
+        if (data.type === "user:offline" && data.userId) {
+            const uid = Number(data.userId);
+            onlineUsers.delete(uid);
+            io?.emit("user:offline", { id: uid });
+            return;
+        }
+
+        if (data.type === "message:new" && data.chatId) {
+            // 1. Отправляем тем, у кого чат открыт
+            this.socketServer?.to(`chat-${data.chatId}`).emit("message:new", {
+                chatId: data.chatId,
+                message: data.message,
             });
 
-            socket.on("disconnect", () => {
-                console.log("❌ Django відключився");
-            });
+            // 2. Now call emitChatUpdated in background
+            try {
+                const numericChatId = parseIdToBigInt(data.chatId);
+                await emitChatUpdated(numericChatId);
+            } catch (error) {
+                console.error("❌ Ошибка обновления счетчиков для неактивных пользователей:", error);
+            }
+        }
+    });
 
-            socket.on("users:get_online", (ack) => {
-                ack?.(ok(Array.from(onlineUsers)));
-            });
-        });
+    socket.on("disconnect", () => {
+        console.log("❌ Django відключився");
+    });
 
+    socket.on("users:get_online", (ack) => {
+        ack?.(ok(Array.from(onlineUsers)));
+    });
+});
     },
 };
