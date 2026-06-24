@@ -309,6 +309,13 @@ export const AlbumController: ControllerContract = {
 			})),
 		);
 
+		// В AlbumController.addImages добавь лог до проверки:
+		console.log('addImages body:', JSON.stringify({
+			albumId,
+			imagesCount: Array.isArray(images) ? images.length : 'NOT_ARRAY',
+			firstPrefix: Array.isArray(images) && images[0] ? String(images[0].image).substring(0, 60) : null
+		}));
+
 		res.status(200).json(response);
 	},
 

@@ -12,7 +12,7 @@ const PORT = 8000;
 // 10.22.202.103
 // 192.168.0.193
 // 192.168.0.148
-const HOST = "192.168.0.148";
+const HOST = "0.0.0.0";
 const app = express();
 const httpServer = createServer(app);
 
@@ -30,7 +30,7 @@ app.use('/media', express.static(path.join(__dirname, '../media')));
 async function startServer() {
   try {
     // Открываем SSH туннель перед импортом модулей, использующих Prisma
-    await startTunnel();
+    // await startTunnel();
 
     // Импорт роутеров и менеджера сокетов после туннеля
     const { SocketManager } = await import("./Socket/socket.manager");

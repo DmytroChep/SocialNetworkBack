@@ -25,11 +25,11 @@ export const getMediaUrl = (value?: string | null): string | null => {
   return `${CLOUDINARY_BASE}/${value}`;
 };
 
-// Cloudinary конфіг (один раз при імпорті)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  timeout: 60000, // ← добавь, 60 секунд
 });
 
 const safeSegment = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_");

@@ -43,14 +43,20 @@ export const validateAlbumImages = async (
     const authorId = profileId || userId || user_id || Date.now();
 
     try {
-        req.body.images = await Promise.all(
-            images.map((item: any, index: number) =>
-                saveDataUriImage(item.image, "media/profile_app/albums", `album_${authorId}`, index)
-                .then((url) => ({ image: url }))
-            )
-        );  
+        const result: { image: string }[] = [];
+        for (let index = 0; index < images.length; index++) {
+            const url = await saveDataUriImage(
+                images[index].image,
+                "media/profile_app/albums",
+                `album_${authorId}`,
+                index
+            );
+            result.push({ image: url });
+        }
+        req.body.images = result;
         next();
-    } catch {
+    } catch (error) {
+        console.error('validateAlbumImages error:', error);
         res.status(400).json({ error: "invalid image payload" });
     }
 };
