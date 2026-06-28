@@ -135,90 +135,70 @@ export const SocketManager: SocketManagerContract = {
                     ack?.(fail("unknown error"));
                 }
             });
+socket.on("message:send", async (data, ack) => {
+  try {
+    const chatId = normalizeChatId(data?.chatId);
+    if (!chatId) { ack?.(fail("invalid chat id")); return; }
 
-            socket.on(
-                "message:send",
-                async (
-                    data: { chatId?: number | string; text?: string; images?: string[] },
-                    ack?: (response: ReturnType<typeof ok> | ReturnType<typeof fail>) => void,
-                ) => {
-                    try {
-                        const chatId = normalizeChatId(data?.chatId);
-                        if (!chatId) {
-                            ack?.(fail("invalid chat id"));
-                            return;
-                        }
+    // Відправляємо ack одразу (optimistic), не чекаємо upload
+    ack?.(ok());
 
-                        const message = await ChatService.sendMessage(
-                            socket.data.userId,
-                            chatId,
-                            data?.text ?? "",
-                            data?.images ?? [],
-                        );
+    const message = await ChatService.sendMessage(
+      socket.data.userId,
+      chatId,
+      data?.text ?? "",
+      data?.images ?? [],
+    );
 
-                        // handle send result/error first
-                        if (typeof message === "string") {
-                            ack?.(fail(message));
-                            return;
-                        }
+    if (typeof message === "string") {
+      // Upload завершився з помилкою — нотифікуємо клієнта окремим евентом
+      socket.emit("message:send_error", { chatId: String(chatId), error: message });
+      return;
+    }
 
-                        // ensure we have fully populated message (images/urls) before emit
-                        let emittedMessage: any = message;
+    const safeMessage = sanitizeBigInts(message);
 
-                        // If ChatService provides a getter to fetch message with relations, use it
-                        if (message && typeof (ChatService as any).getMessageById === "function") {
-                            try {
-                                const maybe = await (ChatService as any).getMessageById(message.id);
-                                if (maybe) emittedMessage = maybe;
-                            } catch (err) {
-                                console.warn("Failed to re-fetch message for emit:", err);
-                                // fallback to original `message`
-                            }
-                        }
+    io.to(`chat-${String(chatId)}`).emit("message:new", {
+      chatId: String(chatId),
+      message: safeMessage,
+    });
 
-                        const safeMessage = sanitizeBigInts(emittedMessage);
+    // emit to participant user rooms
+    try {
+      const participants = await ChatService.getChatParticipants(chatId);
+      await Promise.all(
+        participants.map(async (participant) => {
+          const uid = typeof participant.user_id === "bigint"
+            ? participant.user_id
+            : BigInt(participant.user_id as any);
+          io.to(`user-${String(uid)}`).emit("message:new", {
+            chatId: String(chatId),
+            message: safeMessage,
+          });
+        }),
+      );
+    } catch (err) {
+      console.error("Failed to emit to participant user rooms:", err);
+    }
 
-                        // Emit to chat room
-                        io.to(`chat-${String(chatId)}`).emit("message:new", {
-                            chatId: String(chatId),
-                            message: safeMessage,
-                        });
+    this.socketServer?.of("/django-bridge").emit("server_event", {
+      type: "message:new",
+      chatId: String(chatId),
+      message: safeMessage,
+    });
 
-                        // Also emit to each participant's personal room to ensure delivery to all devices
-                        try {
-                            const participants = await ChatService.getChatParticipants(chatId);
-                            await Promise.all(
-                                participants.map(async (participant) => {
-                                    const uid = typeof participant.user_id === "bigint"
-                                        ? participant.user_id
-                                        : BigInt(participant.user_id as any);
-                                    io.to(`user-${String(uid)}`).emit("message:new", {
-                                        chatId: String(chatId),
-                                        message: safeMessage,
-                                    });
-                                }),
-                            );
-                        } catch (err) {
-                            console.error("Failed to emit to participant user rooms:", err);
-                        }
-
-                        // Inform Django bridge once
-                        this.socketServer?.of("/django-bridge").emit("server_event", {
-                            type: "message:new",
-                            chatId: String(chatId),
-                            message: safeMessage,
-                        });
-
-                        // Background update of chats/counts (unchanged)
-                        emitChatUpdated(chatId).catch((err) => console.error("⚠️ Ошибка обновления чатов в фоне:", err));
-
-                        ack?.(ok(safeMessage));
-                    } catch (error) {
-                        console.error("message:send error", error);
-                        ack?.(fail("unknown error"));
-                    }
-                },
-            );
+    emitChatUpdated(chatId).catch((err) =>
+      console.error("⚠️ Ошибка обновления чатов в фоне:", err)
+    );
+  } catch (error) {
+    console.error("message:send error", error);
+    // ack вже відправлений, нотифікуємо окремо
+    socket.emit("message:send_error", {
+      chatId: String(data?.chatId ?? ""),
+      error: "unknown error",
+    });
+  }
+});
 
             socket.on("disconnect", () => {
                 onlineUsers.delete(userId);

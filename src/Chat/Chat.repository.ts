@@ -117,21 +117,21 @@ const normalizeMessageImages = async (
   chatId: number | bigint,
   userId: number | bigint,
 ): Promise<string[]> => {
-  const filtered = images
-    .map((image) => image.trim())
-    .filter(Boolean);
+  const filtered = images.map((image) => image.trim()).filter(Boolean);
 
-  return Promise.all(
-    filtered.map((image, index) =>
-      saveDataUriImage(
-        image,
-        "media/chat_app/message_images",
-        `message_${String(chatId)}_${String(userId)}`,
-        index,
-      ),
-    ),
-  );
+  const result: string[] = [];
+  for (let index = 0; index < filtered.length; index++) {
+    const path = await saveDataUriImage(
+      filtered[index],
+      "media/chat_app/message_images",
+      `message_${String(chatId)}_${String(userId)}`,
+      index,
+    );
+    result.push(path);
+  }
+  return result;
 };
+
 
 export const ChatRepository: ChatRepositoryContract = {
 	getPersonalChats: async (userId, pagination) => {

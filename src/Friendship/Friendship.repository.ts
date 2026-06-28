@@ -118,52 +118,45 @@ const findExistingRequest = (fromUserId: number, toUserId: number) => {
 
 export const FriendshipRepository: RepositoryContract = {
 	userFriendships: async (userId) => {
-		const user = await getUserById(userId);
-		if (!user) return "user not found";
+    const user = await getUserById(userId);
+    if (!user) return "user not found";
 
-		const [friends, incomingRequests, outgoingRequests, blacklistedRequests] =
-			await Promise.all([
-				client.user_app_friendship.findMany({
-					where: {
-						status: { equals: "accepted", mode: "insensitive" },
-						OR: [
-							{ from_user_id: userId },
-							{ to_user_id: userId },
-						],
-					},
-					include: friendshipInclude,
-					orderBy: { created_at: "desc" },
-				}),
-				client.user_app_friendship.findMany({
-					where: { to_user_id: userId, status: { equals: "pending", mode: "insensitive" } },
-					include: friendshipInclude,
-					orderBy: { created_at: "desc" },
-				}),
-				client.user_app_friendship.findMany({
-					where: { from_user_id: userId, status: { equals: "pending", mode: "insensitive" } },
-					include: friendshipInclude,
-					orderBy: { created_at: "desc" },
-				}),
-				client.user_app_friendship.findMany({
-					where: {
-						status: { equals: "blacklisted", mode: "insensitive" },
-						OR: [
-							{ from_user_id: userId },
-							{ to_user_id: userId },
-						],
-					},
-					include: friendshipInclude,
-					orderBy: { created_at: "desc" },
-				}),
-			]);
+    // Один запит — всі friendship де юзер є учасником
+    const all = await client.user_app_friendship.findMany({
+        where: {
+            OR: [
+                { from_user_id: userId },
+                { to_user_id: userId },
+            ],
+        },
+        include: friendshipInclude,
+        orderBy: { created_at: "desc" },
+    });
 
-		return {
-			friends: friends.map(serializeFriendship),
-			incomingRequests: incomingRequests.map(serializeFriendship),
-			outgoingRequests: outgoingRequests.map(serializeFriendship),
-			blacklistedRequests: blacklistedRequests.map(serializeFriendship),
-		} satisfies UserFriendships;
-	},
+    const friends: typeof all = [];
+    const incomingRequests: typeof all = [];
+    const outgoingRequests: typeof all = [];
+    const blacklistedRequests: typeof all = [];
+
+    for (const f of all) {
+        const status = (f.status ?? "").toLowerCase();
+        if (status === "accepted") {
+            friends.push(f);
+        } else if (status === "blacklisted") {
+            blacklistedRequests.push(f);
+        } else if (status === "pending") {
+			if (f.to_user_id === BigInt(userId)) incomingRequests.push(f);
+            else outgoingRequests.push(f);
+        }
+    }
+
+    return {
+        friends: friends.map(serializeFriendship),
+        incomingRequests: incomingRequests.map(serializeFriendship),
+        outgoingRequests: outgoingRequests.map(serializeFriendship),
+        blacklistedRequests: blacklistedRequests.map(serializeFriendship),
+    } satisfies UserFriendships;
+},
 
 	changeStatus: async (id, status: FriendshipStatusAction) => {
 		const request = await client.user_app_friendship.findUnique({
@@ -215,18 +208,25 @@ export const FriendshipRepository: RepositoryContract = {
 		if (existingFriendship) return "users are already friends";
 
 		const existingRequest = await findExistingRequest(senderId, receiverId);
-		if (existingRequest) {
-			if (normalizedStatus === "blacklisted" && (existingRequest.status ?? "").toLowerCase() !== "blacklisted") {
-				const updatedRequest = await client.user_app_friendship.update({
-					where: { id: existingRequest.id },
-					data: { status: "blacklisted" },
-					include: friendshipInclude,
-				});
-				return serializeFriendship(updatedRequest);
-			}
+if (existingRequest) {
+    if (normalizedStatus === "blacklisted" && (existingRequest.status ?? "").toLowerCase() !== "blacklisted") {
+        const updatedRequest = await client.user_app_friendship.update({
+            where: { id: existingRequest.id },
+            data: { status: "blacklisted" },
+            include: friendshipInclude,
+        });
+        return serializeFriendship(updatedRequest);
+    }
 
-			return serializeFriendship(existingRequest);
-		}
+    // ← ДОДАТИ ЦЕ: якщо статус не pending і не blacklisted — перестворюємо
+    const existingStatus = (existingRequest.status ?? "").toLowerCase();
+    if (existingStatus !== "pending" && existingStatus !== "blacklisted") {
+        await client.user_app_friendship.delete({ where: { id: existingRequest.id } });
+        // падаємо вниз до create
+    } else {
+        return serializeFriendship(existingRequest);
+    }
+}
 
 		const request = await client.user_app_friendship.create({
 			data: {

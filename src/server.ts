@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { startTunnel } from "./db-tunnel";
 import path from "path";
 import { bigintSerializer } from "./bigints";
+import { connectWithRetry } from "./config/client";
 
 dotenv.config();
 
@@ -26,13 +27,11 @@ app.use(
 );
 app.use('/media', express.static(path.join(__dirname, '../media')));
 
-// Delay importing routers (which instantiate Prisma client) until after SSH tunnel is ready
+
 async function startServer() {
   try {
-    // Открываем SSH туннель перед импортом модулей, использующих Prisma
-    // await startTunnel();
-
-    // Импорт роутеров и менеджера сокетов после туннеля
+    await connectWithRetry();
+    
     const { SocketManager } = await import("./Socket/socket.manager");
     const { userRouter } = await import("./User/User.router");
     const { AlbumRouter } = await import("./Album/Album.router");
@@ -54,7 +53,7 @@ async function startServer() {
 
     httpServer.listen(PORT, HOST, () => {
       console.log(`http://${HOST}:${PORT}`);
-      console.log(`ws://${HOST}:${PORT}`);
+      console.log(`wsslogin://${HOST}:${PORT}`);
       console.log('Подключено к удаленной БД через туннель');
     });
   } catch (err) {
